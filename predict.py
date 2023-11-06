@@ -241,7 +241,7 @@ class Predictor(BasePredictor):
         )
 
         print("Loading XL Controlnet pipe")
-        self.controlnet_pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
+        self.controlnet_pipe = StableDiffusionXLControlNetPipeline(
             controlnet=self.controlnet,
             vae=self.txt2img_pipe.vae,
             text_encoder=self.txt2img_pipe.text_encoder,
