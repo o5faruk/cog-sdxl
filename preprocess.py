@@ -630,7 +630,7 @@ def _center_of_mass_and_bounding_box(mask: Image.Image, threshold: float = 0.6):
     width = x_max - x_min
     height = y_max - y_min
 
-    return int(x_com) - 75, int(y_com) - 75, width + 75, height + 75
+    return int(x_com), int(y_com), width, height
 
 
 def _crop_to_square_and_bounding_box(
