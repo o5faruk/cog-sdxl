@@ -623,14 +623,14 @@ def _center_of_mass_and_bounding_box(mask: Image.Image, threshold: float = 0.6):
     # Bounding box calculation for white areas above the threshold
     white_pixels = np.where(mask_thresholded == 255)
     if white_pixels[0].size == 0 or white_pixels[1].size == 0:  # No white pixels found
-        return x_com, y_com, 0, 0
+        return int(x_com), int(y_com), 0, 0
 
     x_min, x_max = np.min(white_pixels[1]), np.max(white_pixels[1])
     y_min, y_max = np.min(white_pixels[0]), np.max(white_pixels[0])
     width = x_max - x_min
     height = y_max - y_min
 
-    return x_com, y_com, width, height
+    return int(x_com), int(y_com), width, height
 
 
 def _crop_to_square_and_bounding_box(
@@ -647,10 +647,10 @@ def _crop_to_square_and_bounding_box(
     side_length = max(bbox_width, bbox_height)
 
     # Determine crop dimensions based on the square crop area
-    left = max(cx - side_length / 2, 0)
-    right = min(cx + side_length / 2, width)
-    top = max(cy - side_length / 2, 0)
-    bottom = min(cy + side_length / 2, height)
+    left = max(cx - side_length // 2, 0)
+    right = min(cx + side_length // 2, width)
+    top = max(cy - side_length // 2, 0)
+    bottom = min(cy + side_length // 2, height)
 
     # Crop the image
     image = image.crop((left, top, right, bottom))
@@ -659,10 +659,9 @@ def _crop_to_square_and_bounding_box(
     if resize_to:
         image = image.resize((resize_to, resize_to), Image.Resampling.LANCZOS)
 
-    return image, (left, top)
+    return image, (int(left), int(top))
 
 
-# Accepts 2 images, original_image and mask_image. Returns a cropped version of original_image that is square and centered on the center of mass of the mask_image.
 def crop_faces_to_square(original_image, mask_image):
     # find the center of mass of the mask
     com = _center_of_mass_and_bounding_box(mask_image)
@@ -678,7 +677,7 @@ def crop_faces_to_square(original_image, mask_image):
 
 def paste_inpaint_into_original_image(
     original_image: Image.Image,
-    top_left_coords: Tuple[float, float],
+    top_left_coords: Tuple[int, int],
     image_to_paste: Image.Image,
 ) -> Image.Image:
     """
