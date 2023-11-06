@@ -602,10 +602,13 @@ def _find_files(pattern, dir="."):
     return [os.path.join(dir, f) for f in os.listdir(dir) if rule.match(f)]
 
 
-def _center_of_mass_and_bounding_box(mask: Image.Image, threshold: float = 0.6):
+def _center_of_mass_and_bounding_box(
+    mask: Image.Image, threshold: float = 0.6, padding: int = 100
+):
     """
     Returns the center of mass of the mask and the width and height of the bounding box
-    that considers only white areas above the specified threshold (default is 60% white).
+    that considers only white areas above the specified threshold (default is 60% white),
+    with an added padding to each side.
     """
     # Convert image to numpy array and apply threshold
     mask_np = np.array(mask)
@@ -627,6 +630,13 @@ def _center_of_mass_and_bounding_box(mask: Image.Image, threshold: float = 0.6):
 
     x_min, x_max = np.min(white_pixels[1]), np.max(white_pixels[1])
     y_min, y_max = np.min(white_pixels[0]), np.max(white_pixels[0])
+
+    # Add padding to each side
+    x_min = max(x_min - padding, 0)
+    x_max = min(x_max + padding, mask_np.shape[1])
+    y_min = max(y_min - padding, 0)
+    y_max = min(y_max + padding, mask_np.shape[0])
+
     width = x_max - x_min
     height = y_max - y_min
 
