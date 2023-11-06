@@ -30,7 +30,11 @@ from safetensors.torch import load_file
 from transformers import CLIPImageProcessor
 
 from dataset_and_utils import TokenEmbeddingsHandler
-from preprocess import clipseg_mask_generator, crop_faces_to_square
+from preprocess import (
+    clipseg_mask_generator,
+    crop_faces_to_square,
+    paste_inpaint_into_original_image,
+)
 from download_weights import download_weights
 
 
@@ -442,7 +446,7 @@ class Predictor(BasePredictor):
                 f"NSFW content detected. Try running it again, or try a different prompt."
             )
 
-        cropped_face, cropped_mask = crop_faces_to_square(
+        cropped_face, cropped_mask, left_top = crop_faces_to_square(
             output.images[0], output_masks[0]
         )
 
@@ -480,15 +484,18 @@ class Predictor(BasePredictor):
             "strength": 0.65,
         }
 
-        output = pipe(**inpaint_kwargs)
+        inpaint_output = pipe(**inpaint_kwargs)
 
-        _, has_nsfw_content = self.run_safety_checker(output.images)
+        _, has_nsfw_content = self.run_safety_checker(inpaint_output.images)
 
         for i, nsfw in enumerate(has_nsfw_content):
             if nsfw:
                 print(f"NSFW content detected in image {i}")
                 continue
-            output_path = f"/tmp/inpaint-out-{i}.png"
-            output.images[i].save(output_path)
+            final_image = paste_inpaint_into_original_image(
+                output.images[i], left_top, inpaint_output.images[i]
+            )
+            output_path = f"/tmp/final-out-{i}.png"
+            final_image.save(output_path)
             output_paths.append(Path(output_path))
         return output_paths
