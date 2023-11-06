@@ -437,18 +437,14 @@ class Predictor(BasePredictor):
             output.images[i].save(output_path)
             output_paths.append(Path(output_path))
 
-        cropped_face, cropped_mask = crop_faces_to_square(output.images[0], output_masks[0])
-
-        # Add face mask to output_paths
-        for i, mask in enumerate(output_masks):
-            mask_path = f"/tmp/mask-{i}.png"
-            mask.save(mask_path)
-            output_paths.append(Path(mask_path))
-
         if len(output_paths) == 0:
             raise Exception(
                 f"NSFW content detected. Try running it again, or try a different prompt."
             )
+
+        cropped_face, cropped_mask = crop_faces_to_square(
+            output.images[0], output_masks[0]
+        )
 
         # Add cropped face to output_paths
         cropped_face_path = f"/tmp/cropped_face.png"
@@ -459,5 +455,16 @@ class Predictor(BasePredictor):
         cropped_mask_path = f"/tmp/cropped_mask.png"
         cropped_mask.save(cropped_mask_path)
         output_paths.append(Path(cropped_mask_path))
+
+        print("inpainting mode")
+        sdxl_kwargs["image"] = self.load_image(cropped_face)
+        sdxl_kwargs["mask_image"] = self.load_image(cropped_mask)
+        sdxl_kwargs["strength"] = 0.85
+        sdxl_kwargs["num_inference_steps"] = 40
+        sdxl_kwargs["width"] = width
+        sdxl_kwargs["height"] = height
+        pipe = self.inpaint_pipe
+
+        output = pipe(**common_args, **sdxl_kwargs)
 
         return output_paths
