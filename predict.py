@@ -464,4 +464,10 @@ class Predictor(BasePredictor):
 
         output = pipe(**common_args, **sdxl_kwargs)
 
+        # Add inpainted images to output_paths
+        for i in enumerate(output.images):
+            output_path = f"/tmp/inpaint-out-{i}.png"
+            output.images[i].save(output_path)
+            output_paths.append(Path(output_path))
+
         return output_paths
