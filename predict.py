@@ -31,6 +31,8 @@ from safetensors.torch import load_file
 from transformers import CLIPImageProcessor
 
 from dataset_and_utils import TokenEmbeddingsHandler
+from preprocess import face_mask_google_mediapipe
+
 
 SDXL_MODEL_CACHE = "./sdxl-cache"
 REFINER_MODEL_CACHE = "./refiner-cache"
@@ -341,7 +343,7 @@ class Predictor(BasePredictor):
 
         if replicate_weights:
             self.load_trained_weights(replicate_weights, self.txt2img_pipe)
-        
+
         # OOMs can leave vae in bad state
         if self.txt2img_pipe.vae.dtype == torch.float32:
             self.txt2img_pipe.vae.to(dtype=torch.float16)
@@ -399,17 +401,28 @@ class Predictor(BasePredictor):
 
         output = pipe(**common_args, **sdxl_kwargs)
 
-        if refine in ["expert_ensemble_refiner", "base_image_refiner"]:
-            refiner_kwargs = {
-                "image": output.images,
-            }
+        # Replacing refiner with custom inpainting refiner
+        # if refine in ["expert_ensemble_refiner", "base_image_refiner"]:
+        #     refiner_kwargs = {
+        #         "image": output.images,
+        #     }
 
-            if refine == "expert_ensemble_refiner":
-                refiner_kwargs["denoising_start"] = high_noise_frac
-            if refine == "base_image_refiner" and refine_steps:
-                common_args["num_inference_steps"] = refine_steps
+        #     if refine == "expert_ensemble_refiner":
+        #         refiner_kwargs["denoising_start"] = high_noise_frac
+        #     if refine == "base_image_refiner" and refine_steps:
+        #         common_args["num_inference_steps"] = refine_steps
 
-            output = self.refiner(**common_args, **refiner_kwargs)
+        #     output = self.refiner(**common_args, **refiner_kwargs)
+
+        # Use face_mask_google_mediapipe to generate face mask for every image in output
+        # (function) def face_mask_google_mediapipe(
+        #     images: List[Image],
+        #     blur_amount: float = 0,
+        #     bias: float = 50
+        # ) -> List[Image]
+        output_masks = face_mask_google_mediapipe(
+            images=output.images, blur_amount=0, bias=50
+        )
 
         if not apply_watermark:
             pipe.watermark = watermark_cache
@@ -425,6 +438,12 @@ class Predictor(BasePredictor):
             output_path = f"/tmp/out-{i}.png"
             output.images[i].save(output_path)
             output_paths.append(Path(output_path))
+
+        # Add face mask to output_paths
+        for i, mask in enumerate(output_masks):
+            mask_path = f"/tmp/mask-{i}.png"
+            mask.save(mask_path)
+            output_paths.append(Path(mask_path))
 
         if len(output_paths) == 0:
             raise Exception(
