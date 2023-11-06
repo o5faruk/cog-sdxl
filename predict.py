@@ -239,6 +239,7 @@ class Predictor(BasePredictor):
         self.controlnet = ControlNetModel.from_pretrained(
             "thibaud/controlnet-openpose-sdxl-1.0", torch_dtype=torch.float16
         )
+        self.controlnet.to("cuda")
 
         print("Loading XL Controlnet pipe")
         self.controlnet_pipe = StableDiffusionXLControlNetPipeline(
@@ -251,6 +252,7 @@ class Predictor(BasePredictor):
             unet=self.txt2img_pipe.unet,
             scheduler=self.txt2img_pipe.scheduler,
         )
+        self.controlnet_pipe.to("cuda")
 
         print("setup took: ", time.time() - start)
         # self.txt2img_pipe.__class__.encode_prompt = new_encode_prompt
