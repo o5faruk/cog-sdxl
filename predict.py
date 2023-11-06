@@ -370,6 +370,9 @@ class Predictor(BasePredictor):
             seed = int.from_bytes(os.urandom(2), "big")
         print(f"Using seed: {seed}")
 
+        if replicate_weights:
+            self.load_trained_weights(replicate_weights, self.txt2img_pipe)
+
         # OOMs can leave vae in bad state
         if self.txt2img_pipe.vae.dtype == torch.float32:
             self.txt2img_pipe.vae.to(dtype=torch.float16)
@@ -514,9 +517,6 @@ class Predictor(BasePredictor):
             "mask_image": cropped_mask,
             "strength": 0.65,
         }
-
-        if replicate_weights:
-            self.load_trained_weights(replicate_weights, self.txt2img_pipe)
 
         inpaint_output = pipe(**inpaint_kwargs)
 
