@@ -394,17 +394,17 @@ class Predictor(BasePredictor):
         output = pipe(**common_args, **sdxl_kwargs)
 
         # Replacing refiner with custom inpainting refiner
-        # if refine in ["expert_ensemble_refiner", "base_image_refiner"]:
-        #     refiner_kwargs = {
-        #         "image": output.images,
-        #     }
+        if refine in ["expert_ensemble_refiner", "base_image_refiner"]:
+            refiner_kwargs = {
+                "image": output.images,
+            }
 
-        #     if refine == "expert_ensemble_refiner":
-        #         refiner_kwargs["denoising_start"] = high_noise_frac
-        #     if refine == "base_image_refiner" and refine_steps:
-        #         common_args["num_inference_steps"] = refine_steps
+            if refine == "expert_ensemble_refiner":
+                refiner_kwargs["denoising_start"] = high_noise_frac
+            if refine == "base_image_refiner" and refine_steps:
+                common_args["num_inference_steps"] = refine_steps
 
-        #     output = self.refiner(**common_args, **refiner_kwargs)
+            output = self.refiner(**common_args, **refiner_kwargs)
 
         #    (function) def clipseg_mask_generator(
         #         images: List[Image],
@@ -437,7 +437,7 @@ class Predictor(BasePredictor):
             output.images[i].save(output_path)
             output_paths.append(Path(output_path))
 
-        cropped_face = crop_faces_to_square(output.images[0], output_masks[0])
+        cropped_face, cropped_mask = crop_faces_to_square(output.images[0], output_masks[0])
 
         # Add face mask to output_paths
         for i, mask in enumerate(output_masks):
@@ -449,10 +449,15 @@ class Predictor(BasePredictor):
             raise Exception(
                 f"NSFW content detected. Try running it again, or try a different prompt."
             )
-        
+
         # Add cropped face to output_paths
         cropped_face_path = f"/tmp/cropped_face.png"
         cropped_face.save(cropped_face_path)
         output_paths.append(Path(cropped_face_path))
+
+        # Add cropped mask to output_paths
+        cropped_mask_path = f"/tmp/cropped_mask.png"
+        cropped_mask.save(cropped_mask_path)
+        output_paths.append(Path(cropped_mask_path))
 
         return output_paths

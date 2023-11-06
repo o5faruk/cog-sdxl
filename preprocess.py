@@ -670,4 +670,7 @@ def crop_faces_to_square(original_image, mask_image):
     image = _crop_to_square_and_bounding_box(
         original_image, [com[0], com[1]], [com[2], com[3]], resize_to=1024
     )
-    return image
+    mask = _crop_to_square_and_bounding_box(
+        mask_image, [com[0], com[1]], [com[2], com[3]], resize_to=1024
+    )
+    return image, mask
