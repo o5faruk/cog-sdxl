@@ -443,7 +443,7 @@ class Predictor(BasePredictor):
                 f"NSFW content detected. Try running it again, or try a different prompt."
             )
 
-        cropped_face, cropped_mask, left_top = crop_faces_to_square(
+        cropped_face, cropped_mask, left_top, orig_size = crop_faces_to_square(
             output.images[0], output_masks[0]
         )
 
@@ -493,7 +493,7 @@ class Predictor(BasePredictor):
                 print(f"NSFW content detected in image {i}")
                 continue
             final_image = paste_inpaint_into_original_image(
-                output.images[i], left_top, inpaint_output.images[i]
+                output.images[i], left_top, inpaint_output.images[i], orig_size
             )
             output_path = f"/tmp/final-out-{i}.png"
             final_image.save(output_path)
