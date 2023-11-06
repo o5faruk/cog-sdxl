@@ -460,6 +460,7 @@ class Predictor(BasePredictor):
         sdxl_kwargs["image"] = cropped_face
         sdxl_kwargs["mask_image"] = cropped_mask
         sdxl_kwargs["strength"] = 0.85
+        sdxl_kwargs["output_type"] = "pil"
         pipe = self.inpaint_pipe
 
         output = pipe(**common_args, **sdxl_kwargs)
