@@ -461,15 +461,26 @@ class Predictor(BasePredictor):
         sdxl_kwargs["mask_image"] = cropped_mask
         sdxl_kwargs["strength"] = 0.85
         sdxl_kwargs["output_type"] = "pil"
-        
+
         pipe = self.inpaint_pipe
         pipe.scheduler = SCHEDULERS[scheduler].from_config(pipe.scheduler.config)
-        common_args["generator"] = torch.Generator("cuda").manual_seed(seed)
 
         # Print combined args
-        print("combined_args: ", {**common_args, **sdxl_kwargs})
+        inpaint_kwargs = {
+            "prompt": prompt,
+            "negative_prompt": negative_prompt,
+            "guidance_scale": guidance_scale,
+            "generator": torch.Generator("cuda").manual_seed(seed),
+            "num_inference_steps": num_inference_steps,
+            "width": 1024,
+            "height": 1024,
+            "output_type": "pil",
+            "image": cropped_face,
+            "mask_image": cropped_mask,
+            "strength": 0.85,
+        }
 
-        output = pipe(**common_args, **sdxl_kwargs)
+        output = pipe(**inpaint_kwargs)
 
         _, has_nsfw_content = self.run_safety_checker(output.images)
 
