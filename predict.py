@@ -19,6 +19,9 @@ from diffusers import (
     PNDMScheduler,
     StableDiffusionXLImg2ImgPipeline,
     StableDiffusionXLInpaintPipeline,
+    StableDiffusionXLControlNetPipeline,
+    ControlNetModel,
+    # AutoencoderKL,
 )
 from diffusers.models.attention_processor import LoRAAttnProcessor2_0
 from diffusers.pipelines.stable_diffusion.safety_checker import (
@@ -231,6 +234,24 @@ class Predictor(BasePredictor):
             variant="fp16",
         )
         self.refiner.to("cuda")
+
+        print("Loading controlnet model")
+        self.controlnet = ControlNetModel.from_pretrained(
+            "thibaud/controlnet-openpose-sdxl-1.0", torch_dtype=torch.float16
+        )
+
+        print("Loading XL Controlnet pipe")
+        self.controlnet_pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
+            controlnet=self.controlnet,
+            vae=self.txt2img_pipe.vae,
+            text_encoder=self.txt2img_pipe.text_encoder,
+            text_encoder_2=self.txt2img_pipe.text_encoder_2,
+            tokenizer=self.txt2img_pipe.tokenizer,
+            tokenizer_2=self.txt2img_pipe.tokenizer_2,
+            unet=self.txt2img_pipe.unet,
+            scheduler=self.txt2img_pipe.scheduler,
+        )
+
         print("setup took: ", time.time() - start)
         # self.txt2img_pipe.__class__.encode_prompt = new_encode_prompt
 
@@ -327,6 +348,16 @@ class Predictor(BasePredictor):
             le=1.0,
             default=0.6,
         ),
+        controlnet_conditioning_scale: float = Input(
+            description="controlnet_conditioning_scale",
+            ge=0.0,
+            le=1.0,
+            default=0.6,
+        ),
+        pose_image: Path = Input(
+            description="pose_image",
+            default=None,
+        ),
         replicate_weights: str = Input(
             description="Replicate LoRA weights to use. Leave blank to use the default weights.",
             default=None,
@@ -347,6 +378,13 @@ class Predictor(BasePredictor):
             for k, v in self.token_map.items():
                 prompt = prompt.replace(k, v)
         print(f"Prompt: {prompt}")
+        if pose_image:
+            print("pose mode")
+            sdxl_kwargs["image"] = self.load_image(pose_image)
+            sdxl_kwargs["controlnet_conditioning_scale"] = controlnet_conditioning_scale
+            sdxl_kwargs["width"] = width
+            sdxl_kwargs["height"] = height
+            pipe = self.controlnet_pipe
         if image and mask:
             print("inpainting mode")
             sdxl_kwargs["image"] = self.load_image(image)
