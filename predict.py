@@ -465,10 +465,13 @@ class Predictor(BasePredictor):
 
         output = pipe(**common_args, **sdxl_kwargs)
 
-        # Add inpainted images to output_paths
-        for i in enumerate(output.images):
+        _, has_nsfw_content = self.run_safety_checker(output.images)
+
+        for i, nsfw in enumerate(has_nsfw_content):
+            if nsfw:
+                print(f"NSFW content detected in image {i}")
+                continue
             output_path = f"/tmp/inpaint-out-{i}.png"
             output.images[i].save(output_path)
             output_paths.append(Path(output_path))
-
         return output_paths
