@@ -647,10 +647,10 @@ def _crop_to_square_and_bounding_box(
     side_length = max(bbox_width, bbox_height)
 
     # Determine crop dimensions based on the square crop area
-    left = max(cx - side_length // 2, 0)
-    right = min(cx + side_length // 2, width)
-    top = max(cy - side_length // 2, 0)
-    bottom = min(cy + side_length // 2, height)
+    left = int(max(cx - side_length / 2, 0))
+    right = int(min(cx + side_length / 2, width))
+    top = int(max(cy - side_length / 2, 0))
+    bottom = int(min(cy + side_length / 2, height))
 
     # Crop the image
     image = image.crop((left, top, right, bottom))
@@ -659,7 +659,9 @@ def _crop_to_square_and_bounding_box(
     if resize_to:
         image = image.resize((resize_to, resize_to), Image.Resampling.LANCZOS)
 
-    return image, (int(left), int(top))
+    print((left, top))
+
+    return image, (left, top)
 
 
 def crop_faces_to_square(original_image, mask_image):
@@ -672,19 +674,21 @@ def crop_faces_to_square(original_image, mask_image):
     mask, _ = _crop_to_square_and_bounding_box(
         mask_image, [com[0], com[1]], [com[2], com[3]], resize_to=1024
     )
+
+    print("left top 2", left_top)
     return image, mask, left_top
 
 
 def paste_inpaint_into_original_image(
     original_image: Image.Image,
-    top_left_coords: Tuple[int, int],
+    left_top: Tuple[int, int],
     image_to_paste: Image.Image,
 ) -> Image.Image:
     """
     Paste an image back into its original position in the larger image.
 
     :param original_image: The original larger image.
-    :param top_left_coords: The (x, y) coordinates of the top left corner where to paste the image.
+    :param left_top: The (x, y) coordinates of the top left corner where to paste the image.
     :param image_to_paste: The image to paste into the original image.
     :return: The final merged image.
     """
@@ -692,6 +696,6 @@ def paste_inpaint_into_original_image(
     final_image = original_image.copy()
 
     # Paste the new image into the original image at the specified coordinates
-    final_image.paste(image_to_paste, top_left_coords)
+    final_image.paste(image_to_paste, left_top)
 
     return final_image
