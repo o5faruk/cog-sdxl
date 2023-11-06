@@ -30,7 +30,7 @@ from safetensors.torch import load_file
 from transformers import CLIPImageProcessor
 
 from dataset_and_utils import TokenEmbeddingsHandler
-from preprocess import clipseg_mask_generator
+from preprocess import clipseg_mask_generator, crop_faces_to_square
 from download_weights import download_weights
 
 
@@ -437,6 +437,8 @@ class Predictor(BasePredictor):
             output.images[i].save(output_path)
             output_paths.append(Path(output_path))
 
+        cropped_face = crop_faces_to_square(output.images[0], output_masks[0])
+
         # Add face mask to output_paths
         for i, mask in enumerate(output_masks):
             mask_path = f"/tmp/mask-{i}.png"
@@ -447,5 +449,10 @@ class Predictor(BasePredictor):
             raise Exception(
                 f"NSFW content detected. Try running it again, or try a different prompt."
             )
+        
+        # Add cropped face to output_paths
+        cropped_face_path = f"/tmp/cropped_face.png"
+        cropped_face.save(cropped_face_path)
+        output_paths.append(Path(cropped_face_path))
 
         return output_paths

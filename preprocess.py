@@ -600,3 +600,12 @@ def _find_files(pattern, dir="."):
 
     rule = re.compile(fnmatch.translate(pattern), re.IGNORECASE)
     return [os.path.join(dir, f) for f in os.listdir(dir) if rule.match(f)]
+
+
+# Accepts 2 images, original_image and mask_image. Returns a cropped version of original_image that is square and centered on the center of mass of the mask_image.
+def crop_faces_to_square(original_image, mask_image):
+    # find the center of mass of the mask
+    com = _center_of_mass(mask_image)
+    # based on the center of mass, crop the image to a square
+    image = _crop_to_square(original_image, com, resize_to=1024)
+    return image
