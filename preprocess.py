@@ -602,10 +602,72 @@ def _find_files(pattern, dir="."):
     return [os.path.join(dir, f) for f in os.listdir(dir) if rule.match(f)]
 
 
+def _center_of_mass_and_bounding_box(mask: Image.Image, threshold: float = 0.6):
+    """
+    Returns the center of mass of the mask and the width and height of the bounding box
+    that considers only white areas above the specified threshold (default is 60% white).
+    """
+    # Convert image to numpy array and apply threshold
+    mask_np = np.array(mask)
+    mask_thresholded = np.where(mask_np > (threshold * 255), 255, 0)
+
+    # Center of mass calculation
+    x, y = np.meshgrid(np.arange(mask_np.shape[1]), np.arange(mask_np.shape[0]))
+    total = np.sum(mask_thresholded)
+
+    if total == 0:
+        return 0, 0, 0, 0
+    x_com = np.sum(x * mask_thresholded) / total
+    y_com = np.sum(y * mask_thresholded) / total
+
+    # Bounding box calculation for white areas above the threshold
+    white_pixels = np.where(mask_thresholded == 255)
+    if white_pixels[0].size == 0 or white_pixels[1].size == 0:  # No white pixels found
+        return x_com, y_com, 0, 0
+
+    x_min, x_max = np.min(white_pixels[1]), np.max(white_pixels[1])
+    y_min, y_max = np.min(white_pixels[0]), np.max(white_pixels[0])
+    width = x_max - x_min
+    height = y_max - y_min
+
+    return x_com, y_com, width, height
+
+
+def _crop_to_square_and_bounding_box(
+    image: Image.Image,
+    com: Tuple[int, int],
+    bbox_dims: Tuple[int, int],
+    resize_to: Optional[int] = None,
+):
+    cx, cy = com
+    bbox_width, bbox_height = bbox_dims
+    width, height = image.size
+
+    # Use the larger of bbox_width and bbox_height for square crop dimensions
+    side_length = max(bbox_width, bbox_height)
+
+    # Determine crop dimensions based on the square crop area
+    left = max(cx - side_length / 2, 0)
+    right = min(cx + side_length / 2, width)
+    top = max(cy - side_length / 2, 0)
+    bottom = min(cy + side_length / 2, height)
+
+    # Crop the image
+    image = image.crop((left, top, right, bottom))
+
+    # Resize if required
+    if resize_to:
+        image = image.resize((resize_to, resize_to), Image.Resampling.LANCZOS)
+
+    return image
+
+
 # Accepts 2 images, original_image and mask_image. Returns a cropped version of original_image that is square and centered on the center of mass of the mask_image.
 def crop_faces_to_square(original_image, mask_image):
     # find the center of mass of the mask
-    com = _center_of_mass(mask_image)
+    com = _center_of_mass_and_bounding_box(mask_image)
     # based on the center of mass, crop the image to a square
-    image = _crop_to_square(original_image, com, resize_to=1024)
+    image = _crop_to_square_and_bounding_box(
+        original_image, [com[0], com[1]], [com[2], com[3]], resize_to=1024
+    )
     return image
