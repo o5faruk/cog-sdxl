@@ -237,7 +237,9 @@ class Predictor(BasePredictor):
 
         print("Loading controlnet model")
         self.controlnet = ControlNetModel.from_pretrained(
-            "thibaud/controlnet-openpose-sdxl-1.0", torch_dtype=torch.float16
+            "thibaud/controlnet-openpose-sdxl-1.0",
+            torch_dtype=torch.float16,
+            cache_dir="/src/controlnet-cache",
         )
         self.controlnet.to("cuda")
 
@@ -283,6 +285,14 @@ class Predictor(BasePredictor):
             description="Input Negative Prompt",
             default="",
         ),
+        inpaint_prompt: str = Input(
+            description="Input inpaint prompt",
+            default="An astronaut riding a rainbow unicorn",
+        ),
+        inpaint_negative_prompt: str = Input(
+            description="Input inpaint negative prompt",
+            default="",
+        ),
         image: Path = Input(
             description="Input image for img2img or inpaint mode",
             default=None,
@@ -313,11 +323,29 @@ class Predictor(BasePredictor):
         num_inference_steps: int = Input(
             description="Number of denoising steps", ge=1, le=500, default=50
         ),
+        inpaint_num_inference_steps: int = Input(
+            description="Number of denoising steps for inpainting",
+            ge=1,
+            le=500,
+            default=50,
+        ),
         guidance_scale: float = Input(
             description="Scale for classifier-free guidance", ge=1, le=50, default=7.5
         ),
+        inpaint_guidance_scale: float = Input(
+            description="Scale for classifier-free guidance for inpainting",
+            ge=1,
+            le=50,
+            default=7.5,
+        ),
         prompt_strength: float = Input(
             description="Prompt strength when using img2img / inpaint. 1.0 corresponds to full destruction of information in image",
+            ge=0.0,
+            le=1.0,
+            default=0.8,
+        ),
+        inpaint_strength: float = Input(
+            description="Prompt strength when using inpaint. 1.0 corresponds to full destruction of information in image",
             ge=0.0,
             le=1.0,
             default=0.8,
@@ -360,7 +388,7 @@ class Predictor(BasePredictor):
             description="pose_image",
             default=None,
         ),
-        replicate_weights: str = Input(
+        weights: str = Input(
             description="Replicate LoRA weights to use. Leave blank to use the default weights.",
             default=None,
         ),
@@ -370,8 +398,8 @@ class Predictor(BasePredictor):
             seed = int.from_bytes(os.urandom(2), "big")
         print(f"Using seed: {seed}")
 
-        if replicate_weights:
-            self.load_trained_weights(replicate_weights, self.txt2img_pipe)
+        if weights:
+            self.load_trained_weights(weights, self.txt2img_pipe)
 
         # OOMs can leave vae in bad state
         if self.txt2img_pipe.vae.dtype == torch.float32:
@@ -505,17 +533,17 @@ class Predictor(BasePredictor):
 
         # Print combined args
         inpaint_kwargs = {
-            "prompt": "TOK " + prompt,
-            "negative_prompt": negative_prompt,
-            "guidance_scale": guidance_scale,
+            "prompt": inpaint_prompt,
+            "negative_prompt": inpaint_negative_prompt,
+            "guidance_scale": inpaint_guidance_scale,
             "generator": torch.Generator("cuda").manual_seed(seed),
-            "num_inference_steps": num_inference_steps,
+            "num_inference_steps": inpaint_num_inference_steps,
             "width": 1024,
             "height": 1024,
             "output_type": "pil",
             "image": cropped_face,
             "mask_image": cropped_mask,
-            "strength": 0.65,
+            "strength": inpaint_strength,
         }
 
         inpaint_output = pipe(**inpaint_kwargs)
