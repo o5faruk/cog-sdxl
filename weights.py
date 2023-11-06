@@ -112,6 +112,10 @@ class WeightsDownloadCache:
         while not self._has_enough_space() and len(self.lru_paths) > 0:
             self._remove_least_recent()
 
+        # Check if the destination file already exists. If so, delete it.
+        if os.path.exists(dest):
+            return
+
         print(f"Downloading weights: {url}")
 
         st = time.time()
