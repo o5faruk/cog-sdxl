@@ -417,7 +417,7 @@ class Predictor(BasePredictor):
         #     ) -> List[Image]
         output_masks = clipseg_mask_generator(
             images=output.images,
-            target_prompts="head",
+            target_prompts="face",
             device="cuda",
             bias=0.01,
             temp=1,

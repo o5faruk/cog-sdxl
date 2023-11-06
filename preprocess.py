@@ -627,8 +627,8 @@ def _center_of_mass_and_bounding_box(mask: Image.Image, threshold: float = 0.6):
 
     x_min, x_max = np.min(white_pixels[1]), np.max(white_pixels[1])
     y_min, y_max = np.min(white_pixels[0]), np.max(white_pixels[0])
-    width = x_max - x_min
-    height = y_max - y_min
+    width = x_max - x_min + 50
+    height = y_max - y_min + 50
 
     return int(x_com), int(y_com), width, height
 
