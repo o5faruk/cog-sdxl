@@ -466,7 +466,8 @@ class Predictor(BasePredictor):
         pipe.scheduler = SCHEDULERS[scheduler].from_config(pipe.scheduler.config)
         generator = torch.Generator("cuda").manual_seed(seed)
 
-        print(**common_args, **sdxl_kwargs)
+        # Print combined args
+        print("combined_args: ", {**common_args, **sdxl_kwargs})
 
         output = pipe(**common_args, **sdxl_kwargs)
 
