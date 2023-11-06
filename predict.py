@@ -30,7 +30,7 @@ from safetensors.torch import load_file
 from transformers import CLIPImageProcessor
 
 from dataset_and_utils import TokenEmbeddingsHandler
-from preprocess import face_mask_google_mediapipe
+from preprocess import clipseg_mask_generator
 from download_weights import download_weights
 
 
@@ -406,14 +406,20 @@ class Predictor(BasePredictor):
 
         #     output = self.refiner(**common_args, **refiner_kwargs)
 
-        # Use face_mask_google_mediapipe to generate face mask for every image in output
-        # (function) def face_mask_google_mediapipe(
-        #     images: List[Image],
-        #     blur_amount: float = 0,
-        #     bias: float = 50
-        # ) -> List[Image]
-        output_masks = face_mask_google_mediapipe(
-            images=output.images, blur_amount=0, bias=50
+        #    (function) def clipseg_mask_generator(
+        #         images: List[Image],
+        #         target_prompts: List[str] | str,
+        #         device: device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
+        #         bias: float = 0.01,
+        #         temp: float = 1,
+        #         **kwargs: Any
+        #     ) -> List[Image]
+        output_masks = clipseg_mask_generator(
+            images=output.images,
+            target_prompts="head",
+            device="cuda",
+            bias=0.01,
+            temp=1,
         )
 
         if not apply_watermark:
