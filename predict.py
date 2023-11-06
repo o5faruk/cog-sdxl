@@ -467,7 +467,7 @@ class Predictor(BasePredictor):
 
         # Print combined args
         inpaint_kwargs = {
-            "prompt": prompt,
+            "prompt": "TOK " + prompt,
             "negative_prompt": negative_prompt,
             "guidance_scale": guidance_scale,
             "generator": torch.Generator("cuda").manual_seed(seed),
