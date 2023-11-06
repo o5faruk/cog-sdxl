@@ -477,7 +477,7 @@ class Predictor(BasePredictor):
             "output_type": "pil",
             "image": cropped_face,
             "mask_image": cropped_mask,
-            "strength": 0.85,
+            "strength": 0.65,
         }
 
         output = pipe(**inpaint_kwargs)
