@@ -420,7 +420,7 @@ class Predictor(BasePredictor):
             target_prompts="face",
             device="cuda",
             bias=0.01,
-            temp=1,
+            temp=0.5,
         )
 
         if not apply_watermark:
