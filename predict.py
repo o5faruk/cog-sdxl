@@ -2,7 +2,6 @@ import hashlib
 import json
 import os
 import shutil
-import subprocess
 import time
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from weights import WeightsDownloadCache
@@ -32,6 +31,7 @@ from transformers import CLIPImageProcessor
 
 from dataset_and_utils import TokenEmbeddingsHandler
 from preprocess import face_mask_google_mediapipe
+from download_weights import download_weights
 
 
 SDXL_MODEL_CACHE = "./sdxl-cache"
@@ -59,14 +59,6 @@ SCHEDULERS = {
     "K_EULER": EulerDiscreteScheduler,
     "PNDM": PNDMScheduler,
 }
-
-
-def download_weights(url, dest):
-    start = time.time()
-    print("downloading url: ", url)
-    print("downloading to: ", dest)
-    subprocess.check_call(["pget", "-x", url, dest], close_fds=False)
-    print("downloading took: ", time.time() - start)
 
 
 class Predictor(BasePredictor):

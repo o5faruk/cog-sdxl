@@ -29,7 +29,7 @@ from transformers import (
     Swin2SRImageProcessor,
 )
 
-from predict import download_weights
+from download_weights import download_weights
 
 # model is fixed to Salesforce/blip-image-captioning-large
 BLIP_URL = "https://weights.replicate.delivery/default/blip_large/blip_large.tar"
