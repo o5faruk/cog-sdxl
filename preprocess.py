@@ -603,12 +603,12 @@ def _find_files(pattern, dir="."):
 
 
 def _center_of_mass_and_bounding_box(
-    mask: Image.Image, threshold: float = 0.6, target_size: int = 512
+    mask: Image.Image, threshold: float = 0.6, padding: int = 100
 ):
     """
     Returns the center of mass of the mask and the width and height of the bounding box
     that considers only white areas above the specified threshold (default is 60% white),
-    with a target size of 512x512 or the maximum square possible without hitting the edge.
+    with an added padding to each side.
     """
     # Convert image to numpy array and apply threshold
     mask_np = np.array(mask)
@@ -623,23 +623,22 @@ def _center_of_mass_and_bounding_box(
     x_com = np.sum(x * mask_thresholded) / total
     y_com = np.sum(y * mask_thresholded) / total
 
-    # Calculate half size for the bounding box
-    half_size = target_size // 2
+    # Bounding box calculation for white areas above the threshold
+    white_pixels = np.where(mask_thresholded == 255)
+    if white_pixels[0].size == 0 or white_pixels[1].size == 0:  # No white pixels found
+        return int(x_com), int(y_com), 0, 0
 
-    # Determine the bounds of the bounding box, ensuring it doesn't go beyond image edges
-    x_min = max(int(x_com) - half_size, 0)
-    x_max = min(int(x_com) + half_size, mask_np.shape[1])
-    y_min = max(int(y_com) - half_size, 0)
-    y_max = min(int(y_com) + half_size, mask_np.shape[0])
+    x_min, x_max = np.min(white_pixels[1]), np.max(white_pixels[1])
+    y_min, y_max = np.min(white_pixels[0]), np.max(white_pixels[0])
 
-    # Adjust the size to maintain a square shape
-    width = min(x_max - x_min, y_max - y_min)
-    height = width
+    # Add padding to each side
+    x_min = max(x_min - padding, 0)
+    x_max = min(x_max + padding, mask_np.shape[1])
+    y_min = max(y_min - padding, 0)
+    y_max = min(y_max + padding, mask_np.shape[0])
 
-    # Recalculate the center if the bounding box was adjusted
-    if width < target_size:
-        x_com = (x_min + x_max) / 2
-        y_com = (y_min + y_max) / 2
+    width = x_max - x_min
+    height = y_max - y_min
 
     return int(x_com), int(y_com), width, height
 
