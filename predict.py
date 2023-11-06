@@ -461,7 +461,12 @@ class Predictor(BasePredictor):
         sdxl_kwargs["mask_image"] = cropped_mask
         sdxl_kwargs["strength"] = 0.85
         sdxl_kwargs["output_type"] = "pil"
+        
         pipe = self.inpaint_pipe
+        pipe.scheduler = SCHEDULERS[scheduler].from_config(pipe.scheduler.config)
+        generator = torch.Generator("cuda").manual_seed(seed)
+
+        print(**common_args, **sdxl_kwargs)
 
         output = pipe(**common_args, **sdxl_kwargs)
 
