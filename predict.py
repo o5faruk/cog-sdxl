@@ -457,8 +457,8 @@ class Predictor(BasePredictor):
         output_paths.append(Path(cropped_mask_path))
 
         print("inpainting mode")
-        sdxl_kwargs["image"] = self.load_image(cropped_face)
-        sdxl_kwargs["mask_image"] = self.load_image(cropped_mask)
+        sdxl_kwargs["image"] = cropped_face
+        sdxl_kwargs["mask_image"] = cropped_mask
         sdxl_kwargs["strength"] = 0.85
         sdxl_kwargs["num_inference_steps"] = 40
         sdxl_kwargs["width"] = width
