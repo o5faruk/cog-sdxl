@@ -385,7 +385,7 @@ class Predictor(BasePredictor):
             sdxl_kwargs["width"] = width
             sdxl_kwargs["height"] = height
             pipe = self.controlnet_pipe
-        if image and mask:
+        elif image and mask:
             print("inpainting mode")
             sdxl_kwargs["image"] = self.load_image(image)
             sdxl_kwargs["mask_image"] = self.load_image(mask)
