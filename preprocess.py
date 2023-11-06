@@ -661,28 +661,28 @@ def _crop_to_square_and_bounding_box(
 
     print((left, top))
 
-    return image, (left, top)
+    # Third arg is width and height of bounding box
+    return image, (left, top), (right - left, bottom - top)
 
 
 def crop_faces_to_square(original_image: Image.Image, mask_image: Image.Image):
     # find the center of mass of the mask
     com = _center_of_mass_and_bounding_box(mask_image)
     # based on the center of mass, crop the image to a square
-    image, left_top = _crop_to_square_and_bounding_box(
+    image, left_top, crop_size = _crop_to_square_and_bounding_box(
         original_image, [com[0], com[1]], [com[2], com[3]], resize_to=1024
     )
-    mask, _ = _crop_to_square_and_bounding_box(
+    mask, _, _ = _crop_to_square_and_bounding_box(
         mask_image, [com[0], com[1]], [com[2], com[3]], resize_to=1024
     )
 
-    orig_size = original_image.size
-
     print("left top 2", left_top)
-    return image, mask, left_top, orig_size
+    return image, mask, left_top, crop_size
 
 
 def paste_inpaint_into_original_image(
     original_image: Image.Image,
+    mask_image: Image.Image,
     left_top: Tuple[int, int],
     image_to_paste: Image.Image,
     paste_size: Tuple[int, int],
@@ -698,10 +698,13 @@ def paste_inpaint_into_original_image(
     # Resize the image to be pasted to the specified paste size
     image_to_paste = image_to_paste.resize(paste_size, Image.Resampling.LANCZOS)
 
+    # Resize mask as well
+    mask_image = mask_image.resize(paste_size, Image.Resampling.LANCZOS)
+
     # Create a copy of the original image to avoid modifying it directly
     final_image = original_image.copy()
 
     # Paste the new image into the original image at the specified coordinates
-    final_image.paste(image_to_paste, left_top)
+    final_image.paste(image_to_paste, left_top, mask_image)
 
     return final_image

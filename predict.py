@@ -493,7 +493,11 @@ class Predictor(BasePredictor):
                 print(f"NSFW content detected in image {i}")
                 continue
             final_image = paste_inpaint_into_original_image(
-                output.images[i], left_top, inpaint_output.images[i], orig_size
+                output.images[i],
+                cropped_mask,
+                left_top,
+                inpaint_output.images[i],
+                orig_size,
             )
             output_path = f"/tmp/final-out-{i}.png"
             final_image.save(output_path)
