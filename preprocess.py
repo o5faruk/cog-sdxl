@@ -608,7 +608,7 @@ def _center_of_mass_and_bounding_box(
     """
     Returns the center of mass of the mask and the width and height of the bounding box
     that considers only white areas above the specified threshold (default is 60% white),
-    with an added padding to each side.
+    with an added padding of 100 pixels to each side.
     """
     # Convert image to numpy array and apply threshold
     mask_np = np.array(mask)
@@ -631,16 +631,29 @@ def _center_of_mass_and_bounding_box(
     x_min, x_max = np.min(white_pixels[1]), np.max(white_pixels[1])
     y_min, y_max = np.min(white_pixels[0]), np.max(white_pixels[0])
 
-    # Add padding to each side
-    x_min = max(x_min - padding, 0)
-    x_max = min(x_max + padding, mask_np.shape[1])
-    y_min = max(y_min - padding, 0)
-    y_max = min(y_max + padding, mask_np.shape[0])
+    # Calculate the width and height of the bounding box
+    bbox_width = x_max - x_min
+    bbox_height = y_max - y_min
 
-    width = x_max - x_min
-    height = y_max - y_min
+    # Determine the target size with padding
+    target_width = bbox_width + 2 * padding
+    target_height = bbox_height + 2 * padding
 
-    return int(x_com), int(y_com), width, height
+    # Calculate half sizes for the bounding box with padding
+    half_width = target_width // 2
+    half_height = target_height // 2
+
+    # Determine the bounds of the bounding box with padding, ensuring it doesn't go beyond image edges
+    x_min_padded = max(int(x_com) - half_width, 0)
+    x_max_padded = min(int(x_com) + half_width, mask_np.shape[1])
+    y_min_padded = max(int(y_com) - half_height, 0)
+    y_max_padded = min(int(y_com) + half_height, mask_np.shape[0])
+
+    # Adjust the size to maintain a square shape if necessary
+    width_padded = min(x_max_padded - x_min_padded, y_max_padded - y_min_padded)
+    height_padded = width_padded
+
+    return int(x_com), int(y_com), width_padded, height_padded
 
 
 def _crop_to_square_and_bounding_box(
