@@ -284,7 +284,7 @@ def face_mask_google_mediapipe(
     images: List[Image.Image], blur_amount: float = 0.0, bias: float = 50.0
 ) -> List[Image.Image]:
     """
-    Returns a list of images with masks on the non-face parts.
+    Returns a list of images with masks on the face parts.
     """
     mp_face_detection = mp.solutions.face_detection
     mp_face_mesh = mp.solutions.face_mesh
@@ -371,8 +371,7 @@ def face_mask_google_mediapipe(
                 ]
 
                 if face_landmarks:
-                    # Plain white image
-                    mask = Image.new("L", (iw, ih), 255)
+                    mask = Image.new("L", (iw, ih), 0)
                     mask_np = np.array(mask)
 
                     for face_landmark in face_landmarks:
@@ -381,8 +380,9 @@ def face_mask_google_mediapipe(
                             (int(l.x * bbox[2]) + bbox[0], int(l.y * bbox[3]) + bbox[1])
                             for l in face_landmark
                         ]
-                        # Fill the polygon with black (0)
-                        mask_np = cv2.fillPoly(mask_np, [np.array(landmark_points)], 0)
+                        mask_np = cv2.fillPoly(
+                            mask_np, [np.array(landmark_points)], 255
+                        )
 
                     mask = Image.fromarray(mask_np)
 
@@ -393,7 +393,7 @@ def face_mask_google_mediapipe(
                     # Apply bias to the mask
                     if bias > 0:
                         mask = np.array(mask)
-                        mask = mask - bias * np.ones(mask.shape, dtype=mask.dtype)
+                        mask = mask + bias * np.ones(mask.shape, dtype=mask.dtype)
                         mask = np.clip(mask, 0, 255)
                         mask = Image.fromarray(mask)
 
@@ -403,40 +403,14 @@ def face_mask_google_mediapipe(
                     masks.append(mask)
                 else:
                     # If face landmarks are not available, add a black mask of the same size as the image
-                    masks.append(Image.new("L", (iw, ih), 0))
+                    masks.append(Image.new("L", (iw, ih), 255))
 
         else:
             print("No face detected, adding full mask")
-            # If no face is detected, add a black mask of the same size as the image
-            masks.append(Image.new("L", (iw, ih), 0))
+            # If no face is detected, add a white mask of the same size as the image
+            masks.append(Image.new("L", (iw, ih), 255))
 
     return masks
-
-
-def _crop_to_square(
-    image: Image.Image, com: List[Tuple[int, int]], resize_to: Optional[int] = None
-):
-    cx, cy = com
-    width, height = image.size
-    if width > height:
-        left_possible = max(cx - height / 2, 0)
-        left = min(left_possible, width - height)
-        right = left + height
-        top = 0
-        bottom = height
-    else:
-        left = 0
-        right = width
-        top_possible = max(cy - width / 2, 0)
-        top = min(top_possible, height - width)
-        bottom = top + width
-
-    image = image.crop((left, top, right, bottom))
-
-    if resize_to:
-        image = image.resize((resize_to, resize_to), Image.Resampling.LANCZOS)
-
-    return image
 
 
 def _center_of_mass(mask: Image.Image):
@@ -694,11 +668,7 @@ def crop_faces_to_square(original_image: Image.Image, mask_image: Image.Image):
         padding=padding,
     )
     mask, _, _ = _crop_to_square_and_bounding_box(
-        mask_image, 
-        [com[0], com[1]], 
-        [com[2], com[3]], 
-        resize_to=1024, 
-        padding=padding
+        mask_image, [com[0], com[1]], [com[2], com[3]], resize_to=1024, padding=padding
     )
 
     print("left top 2", left_top)
