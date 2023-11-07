@@ -392,6 +392,14 @@ class Predictor(BasePredictor):
             description="Replicate LoRA weights to use. Leave blank to use the default weights.",
             default=None,
         ),
+        mask_temp: float = Input(
+            description="Mask temperature",
+            default=0.5,
+        ),
+        mask_bias: float = Input(
+            description="Mask bias",
+            default=0.01,
+        ),
     ) -> List[Path]:
         """Run a single prediction on the model"""
         if seed is None:
@@ -484,8 +492,8 @@ class Predictor(BasePredictor):
             images=output.images,
             target_prompts="face",
             device="cuda",
-            bias=0.01,
-            temp=0.5,
+            bias=mask_bias,
+            temp=mask_temp,
         )
 
         # if not apply_watermark:
