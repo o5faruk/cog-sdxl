@@ -351,6 +351,10 @@ class Predictor(BasePredictor):
             le=1.0,
             default=0.8,
         ),
+        mask_blur_amount: float = Input(
+            description="Amount to blur the mask by",
+            default=5.0,
+        ),
         seed: int = Input(
             description="Random seed. Leave blank to randomize the seed", default=None
         ),
@@ -492,16 +496,19 @@ class Predictor(BasePredictor):
 
         output_paths = []
 
-        output_masks = clipseg_mask_generator(
-            images=output.images,
-            target_prompts="face",
-            device="cuda",
-            bias=mask_bias,
-            temp=mask_temp,
-        )
+        # output_masks = clipseg_mask_generator(
+        #     images=output.images,
+        #     target_prompts="face",
+        #     device="cuda",
+        #     bias=mask_bias,
+        #     temp=mask_temp,
+        # )
 
         google_face_masks = face_mask_google_mediapipe(
-            images=output.images, blur_amount=0.0, bias=50
+            images=output.images,
+            blur_amount=mask_blur_amount,
+            # Keep this at 0 for it to be b&w
+            bias=0,
         )
 
         # Add google_face_masks to output_paths
@@ -510,18 +517,37 @@ class Predictor(BasePredictor):
             mask.save(output_path)
             output_paths.append(Path(output_path))
 
-        return output_paths
+        pipe = self.inpaint_pipe
+        pipe.scheduler = SCHEDULERS[scheduler].from_config(pipe.scheduler.config)
+
+        # # Print combined args
+        # inpaint_kwargs = {
+        #     "prompt": inpaint_prompt,
+        #     "negative_prompt": inpaint_negative_prompt,
+        #     "guidance_scale": inpaint_guidance_scale,
+        #     "generator": torch.Generator("cuda").manual_seed(seed),
+        #     "num_inference_steps": inpaint_num_inference_steps,
+        #     "width": width,
+        #     "height": height,
+        #     "output_type": "pil",
+        #     "image": output.images[0],
+        #     "mask_image": google_face_masks[0],
+        #     "strength": inpaint_strength,
+        # }
+
+        #         inpaint_output = pipe(**inpaint_kwargs)
+
+        #         # Add inpaint output to output_paths
+        #         inpaint_output_path = f"/tmp/inpaint-out-{0}.png"
+        #         inpaint_output.images[0].save(inpaint_output_path)
+        #         output_paths.append(Path(inpaint_output_path))
+
         # if not apply_watermark:
         #     pipe.watermark = watermark_cache
         #     self.refiner.watermark = watermark_cache
 
         _, has_nsfw_content = self.run_safety_checker(output.images)
 
-        # Add masks to output_paths
-        for i, mask in enumerate(output_masks):
-            output_path = f"/tmp/mask-{i}.png"
-            mask.save(output_path)
-            output_paths.append(Path(output_path))
         for i, nsfw in enumerate(has_nsfw_content):
             if nsfw:
                 print(f"NSFW content detected in image {i}")
@@ -536,7 +562,7 @@ class Predictor(BasePredictor):
             )
 
         cropped_face, cropped_mask, left_top, orig_size = crop_faces_to_square(
-            output.images[0], output_masks[0]
+            output.images[0], google_face_masks[0]
         )
 
         # Add cropped face to output_paths
@@ -550,10 +576,6 @@ class Predictor(BasePredictor):
         output_paths.append(Path(cropped_mask_path))
 
         print("inpainting mode")
-        sdxl_kwargs["image"] = cropped_face
-        sdxl_kwargs["mask_image"] = cropped_mask
-        sdxl_kwargs["strength"] = 0.85
-        sdxl_kwargs["output_type"] = "pil"
 
         pipe = self.inpaint_pipe
         pipe.scheduler = SCHEDULERS[scheduler].from_config(pipe.scheduler.config)
@@ -565,8 +587,8 @@ class Predictor(BasePredictor):
             "guidance_scale": inpaint_guidance_scale,
             "generator": torch.Generator("cuda").manual_seed(seed),
             "num_inference_steps": inpaint_num_inference_steps,
-            "width": 1024,
-            "height": 1024,
+            "width": cropped_face.width,
+            "height": cropped_face.height,
             "output_type": "pil",
             "image": cropped_face,
             "mask_image": cropped_mask,
@@ -575,26 +597,20 @@ class Predictor(BasePredictor):
 
         inpaint_output = pipe(**inpaint_kwargs)
 
-        _, has_nsfw_content = self.run_safety_checker(inpaint_output.images)
-
         # Add inpaint output to output_paths
         inpaint_output_path = f"/tmp/inpaint-out-{0}.png"
         inpaint_output.images[0].save(inpaint_output_path)
         output_paths.append(Path(inpaint_output_path))
 
-        for i, nsfw in enumerate(has_nsfw_content):
-            if nsfw:
-                print(f"NSFW content detected in image {i}")
-                continue
+        final_image = paste_inpaint_into_original_image(
+            output.images[i],
+            cropped_mask,
+            left_top,
+            inpaint_output.images[i],
+            orig_size,
+        )
+        output_path = f"/tmp/final-out-{i}.png"
+        final_image.save(output_path)
+        output_paths.append(Path(output_path))
 
-            final_image = paste_inpaint_into_original_image(
-                output.images[i],
-                cropped_mask,
-                left_top,
-                inpaint_output.images[i],
-                orig_size,
-            )
-            output_path = f"/tmp/final-out-{i}.png"
-            final_image.save(output_path)
-            output_paths.append(Path(output_path))
         return output_paths
