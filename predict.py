@@ -280,19 +280,19 @@ class Predictor(BasePredictor):
         self,
         prompt: str = Input(
             description="Input prompt",
-            default="An astronaut riding a rainbow unicorn",
+            default="a TOK man in preppy style, old money aesthetic, posh style, elite school stlye, luxurious style, gossip girl neo-prep style, ralph lauren style, country club style, ivy league style",
         ),
         negative_prompt: str = Input(
             description="Input Negative Prompt",
-            default="",
+            default="plastic, blurry, grainy, [deformed | disfigured], poorly drawn, [bad : wrong] anatomy, [extra | missing | floating | disconnected] limb, (mutated hands and fingers), blurry",
         ),
         inpaint_prompt: str = Input(
             description="Input inpaint prompt",
-            default="An astronaut riding a rainbow unicorn",
+            default="closeup of TOK man, natural skin, skin moles, 37 y o caucasian",
         ),
         inpaint_negative_prompt: str = Input(
             description="Input inpaint negative prompt",
-            default="",
+            default="plastic, blurry, grainy, [deformed | disfigured], poorly drawn, [bad : wrong] anatomy, [extra | missing | floating | disconnected] limb, (mutated hands and fingers), blurry",
         ),
         image: Path = Input(
             description="Input image for img2img or inpaint mode",
@@ -304,7 +304,7 @@ class Predictor(BasePredictor):
         ),
         width: int = Input(
             description="Width of output image",
-            default=1024,
+            default=768,
         ),
         height: int = Input(
             description="Height of output image",
@@ -322,22 +322,22 @@ class Predictor(BasePredictor):
             default="K_EULER",
         ),
         num_inference_steps: int = Input(
-            description="Number of denoising steps", ge=1, le=500, default=50
+            description="Number of denoising steps", ge=1, le=500, default=25
         ),
         inpaint_num_inference_steps: int = Input(
             description="Number of denoising steps for inpainting",
             ge=1,
             le=500,
-            default=50,
+            default=25,
         ),
         guidance_scale: float = Input(
-            description="Scale for classifier-free guidance", ge=1, le=50, default=7.5
+            description="Scale for classifier-free guidance", ge=1, le=50, default=9
         ),
         inpaint_guidance_scale: float = Input(
             description="Scale for classifier-free guidance for inpainting",
             ge=1,
             le=50,
-            default=7.5,
+            default=9,
         ),
         prompt_strength: float = Input(
             description="Prompt strength when using img2img / inpaint. 1.0 corresponds to full destruction of information in image",
@@ -349,14 +349,14 @@ class Predictor(BasePredictor):
             description="Prompt strength when using inpaint. 1.0 corresponds to full destruction of information in image",
             ge=0.0,
             le=1.0,
-            default=0.8,
+            default=0.35,
         ),
         mask_blur_amount: float = Input(
             description="Amount to blur the mask by",
-            default=5.0,
+            default=8.0,
         ),
         seed: int = Input(
-            description="Random seed. Leave blank to randomize the seed", default=None
+            description="Random seed. Leave blank to randomize the seed", default=1234
         ),
         refine: str = Input(
             description="Which refine style to use",
@@ -381,7 +381,7 @@ class Predictor(BasePredictor):
             description="LoRA additive scale. Only applicable on trained models.",
             ge=0.0,
             le=1.0,
-            default=0.6,
+            default=0.4,
         ),
         controlnet_conditioning_scale: float = Input(
             description="controlnet_conditioning_scale",
@@ -395,15 +395,7 @@ class Predictor(BasePredictor):
         ),
         weights: str = Input(
             description="Replicate LoRA weights to use. Leave blank to use the default weights.",
-            default=None,
-        ),
-        mask_temp: float = Input(
-            description="Mask temperature",
-            default=0.5,
-        ),
-        mask_bias: float = Input(
-            description="Mask bias",
-            default=0.01,
+            default="https://replicate.delivery/pbxt/cv7B5U7T4G4kFN8eXIg7F8FRfbC54hIWyeizfNuH9lcBevtOC/trained_model.tar",
         ),
     ) -> List[Path]:
         """Run a single prediction on the model"""
