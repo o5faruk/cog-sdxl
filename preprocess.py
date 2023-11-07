@@ -681,12 +681,24 @@ def _crop_to_square_and_bounding_box(
 def crop_faces_to_square(original_image: Image.Image, mask_image: Image.Image):
     # find the center of mass of the mask
     com = _center_of_mass_and_bounding_box(mask_image)
+    print(com)
+    # calculate 20% padding of the smaller dimension of the bounding box
+    padding_percentage = 0.25
+    padding = int(min(com[2], com[3]) * padding_percentage)
     # based on the center of mass, crop the image to a square
     image, left_top, crop_size = _crop_to_square_and_bounding_box(
-        original_image, [com[0], com[1]], [com[2], com[3]], resize_to=1024, padding=200
+        original_image,
+        [com[0], com[1]],
+        [com[2], com[3]],
+        resize_to=1024,
+        padding=padding,
     )
     mask, _, _ = _crop_to_square_and_bounding_box(
-        mask_image, [com[0], com[1]], [com[2], com[3]], resize_to=1024, padding=200
+        mask_image, 
+        [com[0], com[1]], 
+        [com[2], com[3]], 
+        resize_to=1024, 
+        padding=padding
     )
 
     print("left top 2", left_top)

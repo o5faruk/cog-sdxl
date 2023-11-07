@@ -37,6 +37,7 @@ from preprocess import (
     clipseg_mask_generator,
     crop_faces_to_square,
     paste_inpaint_into_original_image,
+    face_mask_google_mediapipe,
 )
 from download_weights import download_weights
 
@@ -488,6 +489,9 @@ class Predictor(BasePredictor):
         #         temp: float = 1,
         #         **kwargs: Any
         #     ) -> List[Image]
+
+        output_paths = []
+
         output_masks = clipseg_mask_generator(
             images=output.images,
             target_prompts="face",
@@ -496,13 +500,23 @@ class Predictor(BasePredictor):
             temp=mask_temp,
         )
 
+        google_face_masks = face_mask_google_mediapipe(
+            images=output.images, blur_amount=0.0, bias=50
+        )
+
+        # Add google_face_masks to output_paths
+        for i, mask in enumerate(google_face_masks):
+            output_path = f"/tmp/google-mask-{i}.png"
+            mask.save(output_path)
+            output_paths.append(Path(output_path))
+
+        return output_paths
         # if not apply_watermark:
         #     pipe.watermark = watermark_cache
         #     self.refiner.watermark = watermark_cache
 
         _, has_nsfw_content = self.run_safety_checker(output.images)
 
-        output_paths = []
         # Add masks to output_paths
         for i, mask in enumerate(output_masks):
             output_path = f"/tmp/mask-{i}.png"
@@ -563,14 +577,16 @@ class Predictor(BasePredictor):
 
         _, has_nsfw_content = self.run_safety_checker(inpaint_output.images)
 
+        # Add inpaint output to output_paths
+        inpaint_output_path = f"/tmp/inpaint-out-{0}.png"
+        inpaint_output.images[0].save(inpaint_output_path)
+        output_paths.append(Path(inpaint_output_path))
+
         for i, nsfw in enumerate(has_nsfw_content):
             if nsfw:
                 print(f"NSFW content detected in image {i}")
                 continue
-            # Add inpaint output to output_paths
-            inpaint_output_path = f"/tmp/inpaint-out-{i}.png"
-            inpaint_output.images[i].save(inpaint_output_path)
-            output_paths.append(Path(inpaint_output_path))
+
             final_image = paste_inpaint_into_original_image(
                 output.images[i],
                 cropped_mask,
