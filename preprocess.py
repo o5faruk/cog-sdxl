@@ -604,8 +604,9 @@ def _find_files(pattern, dir="."):
 
 def _center_of_mass_and_bounding_box(mask: Image.Image, threshold: float = 0.6):
     """
-    Returns the masked part of the image where white areas are above the specified
-    threshold (default is 60% white).
+    Returns the center of mass of the mask, the width and height of the bounding box,
+    and the masked part of the image that considers only white areas above the
+    specified threshold (default is 60% white).
     """
     # Convert image to numpy array and apply threshold
     mask_np = np.array(mask)
@@ -627,13 +628,16 @@ def _center_of_mass_and_bounding_box(mask: Image.Image, threshold: float = 0.6):
     y_min = max(int(y_com) - mask_np.shape[0] // 2, 0)
     y_max = min(int(y_com) + mask_np.shape[0] // 2, mask_np.shape[0])
 
-    # Crop the mask
-    mask_cropped = mask_thresholded[y_min:y_max, x_min:x_max]
+    # Width and height of the bounding box
+    width = x_max - x_min
+    height = y_max - y_min
 
-    # Create an Image object from the cropped array
-    masked_image = Image.fromarray(mask_cropped.astype(np.uint8))
+    return int(x_com), int(y_com), width, height
 
-    return masked_image
+
+# Example usage:
+# Load your image as a PIL Image object and call the function
+# x_com, y_com, width, height, masked_part = _center_of_mass_and_bounding_box(your_image)
 
 
 def _crop_to_square_and_bounding_box(
