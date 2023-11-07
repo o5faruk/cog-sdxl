@@ -602,13 +602,10 @@ def _find_files(pattern, dir="."):
     return [os.path.join(dir, f) for f in os.listdir(dir) if rule.match(f)]
 
 
-def _center_of_mass_and_bounding_box(
-    mask: Image.Image, threshold: float = 0.6, target_size: int = 512
-):
+def _center_of_mass_and_bounding_box(mask: Image.Image, threshold: float = 0.6):
     """
-    Returns the center of mass of the mask and the width and height of the bounding box
-    that considers only white areas above the specified threshold (default is 60% white),
-    with a target size of 512x512 or the maximum square possible without hitting the edge.
+    Returns the masked part of the image where white areas are above the specified
+    threshold (default is 60% white).
     """
     # Convert image to numpy array and apply threshold
     mask_np = np.array(mask)
@@ -619,29 +616,24 @@ def _center_of_mass_and_bounding_box(
     total = np.sum(mask_thresholded)
 
     if total == 0:
-        return 0, 0, 0, 0
+        return None  # Return None if there are no pixels above threshold
+
     x_com = np.sum(x * mask_thresholded) / total
     y_com = np.sum(y * mask_thresholded) / total
 
-    # Calculate half size for the bounding box
-    half_size = target_size // 2
+    # Calculate the bounding box based on the center of mass
+    x_min = max(int(x_com) - mask_np.shape[1] // 2, 0)
+    x_max = min(int(x_com) + mask_np.shape[1] // 2, mask_np.shape[1])
+    y_min = max(int(y_com) - mask_np.shape[0] // 2, 0)
+    y_max = min(int(y_com) + mask_np.shape[0] // 2, mask_np.shape[0])
 
-    # Determine the bounds of the bounding box, ensuring it doesn't go beyond image edges
-    x_min = max(int(x_com) - half_size, 0)
-    x_max = min(int(x_com) + half_size, mask_np.shape[1])
-    y_min = max(int(y_com) - half_size, 0)
-    y_max = min(int(y_com) + half_size, mask_np.shape[0])
+    # Crop the mask
+    mask_cropped = mask_thresholded[y_min:y_max, x_min:x_max]
 
-    # Adjust the size to maintain a square shape
-    width = min(x_max - x_min, y_max - y_min)
-    height = width
+    # Create an Image object from the cropped array
+    masked_image = Image.fromarray(mask_cropped.astype(np.uint8))
 
-    # Recalculate the center if the bounding box was adjusted
-    if width < target_size:
-        x_com = (x_min + x_max) / 2
-        y_com = (y_min + y_max) / 2
-
-    return int(x_com), int(y_com), width, height
+    return masked_image
 
 
 def _crop_to_square_and_bounding_box(

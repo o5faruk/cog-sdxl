@@ -503,6 +503,11 @@ class Predictor(BasePredictor):
         _, has_nsfw_content = self.run_safety_checker(output.images)
 
         output_paths = []
+        # Add masks to output_paths
+        for i, mask in enumerate(output_masks):
+            output_path = f"/tmp/mask-{i}.png"
+            mask.save(output_path)
+            output_paths.append(Path(output_path))
         for i, nsfw in enumerate(has_nsfw_content):
             if nsfw:
                 print(f"NSFW content detected in image {i}")
