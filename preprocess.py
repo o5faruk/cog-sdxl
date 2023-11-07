@@ -655,16 +655,20 @@ def _crop_to_square_and_bounding_box(
     # Add padding to the square crop area
     side_length = max(bbox_width, bbox_height) + padding
 
+    # Adjust center of mass if too close to the edges
+    cx = max(side_length // 2, min(cx, width - side_length // 2))
+    cy = max(side_length // 2, min(cy, height - side_length // 2))
+
     # Determine crop dimensions based on the square crop area
-    left = int(max(cx - side_length / 2, 0))
-    right = int(min(cx + side_length / 2, width))
-    top = int(max(cy - side_length / 2, 0))
-    bottom = int(min(cy + side_length / 2, height))
+    left = cx - side_length // 2
+    right = cx + side_length // 2
+    top = cy - side_length // 2
+    bottom = cy + side_length // 2
 
     # Crop the image
     image = image.crop((left, top, right, bottom))
 
-    print("IMAGE SIZE CROPED", image.size)
+    print("IMAGE SIZE CROPPED", image.size)
 
     # Resize if required
     if resize_to:
