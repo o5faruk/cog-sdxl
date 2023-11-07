@@ -602,11 +602,13 @@ def _find_files(pattern, dir="."):
     return [os.path.join(dir, f) for f in os.listdir(dir) if rule.match(f)]
 
 
-def _center_of_mass_and_bounding_box(mask: Image.Image, threshold: float = 0.6):
+def _center_of_mass_and_bounding_box(
+    mask: Image.Image, threshold: float = 0.6, padding: int = 100
+):
     """
-    Returns the center of mass of the mask, the width and height of the bounding box,
-    and the masked part of the image that considers only white areas above the
-    specified threshold (default is 60% white).
+    Returns the center of mass of the mask and the width and height of the bounding box
+    that considers only white areas above the specified threshold (default is 60% white),
+    with an added padding of 100 pixels to each side.
     """
     # Convert image to numpy array and apply threshold
     mask_np = np.array(mask)
@@ -617,22 +619,41 @@ def _center_of_mass_and_bounding_box(mask: Image.Image, threshold: float = 0.6):
     total = np.sum(mask_thresholded)
 
     if total == 0:
-        return None  # Return None if there are no pixels above threshold
-
+        return 0, 0, 0, 0
     x_com = np.sum(x * mask_thresholded) / total
     y_com = np.sum(y * mask_thresholded) / total
 
-    # Calculate the bounding box based on the center of mass
-    x_min = max(int(x_com) - mask_np.shape[1] // 2, 0)
-    x_max = min(int(x_com) + mask_np.shape[1] // 2, mask_np.shape[1])
-    y_min = max(int(y_com) - mask_np.shape[0] // 2, 0)
-    y_max = min(int(y_com) + mask_np.shape[0] // 2, mask_np.shape[0])
+    # Bounding box calculation for white areas above the threshold
+    white_pixels = np.where(mask_thresholded == 255)
+    if white_pixels[0].size == 0 or white_pixels[1].size == 0:  # No white pixels found
+        return int(x_com), int(y_com), 0, 0
 
-    # Width and height of the bounding box
-    width = x_max - x_min
-    height = y_max - y_min
+    x_min, x_max = np.min(white_pixels[1]), np.max(white_pixels[1])
+    y_min, y_max = np.min(white_pixels[0]), np.max(white_pixels[0])
 
-    return int(x_com), int(y_com), width, height
+    # Calculate the width and height of the bounding box
+    bbox_width = x_max - x_min
+    bbox_height = y_max - y_min
+
+    # Determine the target size with padding
+    target_width = bbox_width + 2 * padding
+    target_height = bbox_height + 2 * padding
+
+    # Calculate half sizes for the bounding box with padding
+    half_width = target_width // 2
+    half_height = target_height // 2
+
+    # Determine the bounds of the bounding box with padding, ensuring it doesn't go beyond image edges
+    x_min_padded = max(int(x_com) - half_width, 0)
+    x_max_padded = min(int(x_com) + half_width, mask_np.shape[1])
+    y_min_padded = max(int(y_com) - half_height, 0)
+    y_max_padded = min(int(y_com) + half_height, mask_np.shape[0])
+
+    # Adjust the size to maintain a square shape if necessary
+    width_padded = min(x_max_padded - x_min_padded, y_max_padded - y_min_padded)
+    height_padded = width_padded
+
+    return int(x_com), int(y_com), width_padded, height_padded
 
 
 # Example usage:
