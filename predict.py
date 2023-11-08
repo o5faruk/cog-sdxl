@@ -380,7 +380,7 @@ class Predictor(BasePredictor):
         #     le=1.0,
         # ),
         seed: int = Input(
-            description="Random seed. Leave blank to randomize the seed",
+            description="Random seed. Leave blank to randomize the seed", default=None
         ),
         lora_scale: float = Input(
             description="LoRA additive scale. Only applicable on trained models.",
@@ -388,9 +388,7 @@ class Predictor(BasePredictor):
             le=1.0,
             default=0.7,
         ),
-        pose_image: Path = Input(
-            description="pose_image",
-        ),
+        pose_image: Path = Input(description="pose_image", default=None),
         controlnet_conditioning_scale: float = Input(
             description="controlnet_conditioning_scale",
             ge=0.0,
