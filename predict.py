@@ -437,6 +437,9 @@ class Predictor(BasePredictor):
         if weights:
             self.load_trained_weights(weights, self.txt2img_pipe)
             self.load_trained_weights(weights, self.inpaint_pipe)
+            self.load_trained_weights(weights, self.controlnet_pipe)
+            self.load_trained_weights(weights, self.img2img_pipe)
+            self.load_trained_weights(weights, self.inpaint_pipe)
 
         # OOMs can leave vae in bad state
         if self.txt2img_pipe.vae.dtype == torch.float32:
@@ -540,6 +543,7 @@ class Predictor(BasePredictor):
             "image": cropped_face,
             "mask_image": cropped_mask,
             "strength": inpaint_strength,
+            "cross_attention_kwargs": {"scale": lora_scale},
         }
 
         output_image = output.images[0]
@@ -567,6 +571,7 @@ class Predictor(BasePredictor):
             "image": inpaint_image,
             "mask_image": cropped_mask,
             "strength": second_inpaint_strength,
+            "cross_attention_kwargs": {"scale": lora_scale},
         }
 
         second_inpaint_output = self.inpaint_pipe(**inpaint_kwargs)
