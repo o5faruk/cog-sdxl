@@ -41,6 +41,8 @@ from preprocess import (
 )
 from download_weights import download_weights
 
+from PIL import Image
+
 
 SDXL_MODEL_CACHE = "./sdxl-cache"
 # REFINER_MODEL_CACHE = "./refiner-cache"
@@ -286,6 +288,12 @@ class Predictor(BasePredictor):
             description="Input Negative Prompt",
             default="plastic, blurry, grainy, [deformed | disfigured], poorly drawn, [bad : wrong] anatomy, [extra | missing | floating | disconnected] limb, (mutated hands and fingers), blurry",
         ),
+        num_inference_steps: int = Input(
+            description="Number of denoising steps", ge=1, le=500, default=25
+        ),
+        guidance_scale: float = Input(
+            description="Scale for classifier-free guidance", ge=1, le=50, default=9
+        ),
         inpaint_prompt: str = Input(
             description="Input inpaint prompt",
             default="closeup of TOK man, natural skin, skin moles, 37 y o caucasian",
@@ -294,13 +302,55 @@ class Predictor(BasePredictor):
             description="Input inpaint negative prompt",
             default="plastic, blurry, grainy, [deformed | disfigured], poorly drawn, [bad : wrong] anatomy, [extra | missing | floating | disconnected] limb, (mutated hands and fingers), blurry",
         ),
-        image: Path = Input(
-            description="Input image for img2img or inpaint mode",
-            default=None,
+        inpaint_num_inference_steps: int = Input(
+            description="Number of denoising steps for inpainting",
+            ge=1,
+            le=500,
+            default=25,
         ),
-        mask: Path = Input(
-            description="Input mask for inpaint mode. Black areas will be preserved, white areas will be inpainted.",
-            default=None,
+        inpaint_guidance_scale: float = Input(
+            description="Scale for classifier-free guidance for inpainting",
+            ge=1,
+            le=50,
+            default=9,
+        ),
+        inpaint_strength: float = Input(
+            description="Prompt strength when using inpaint. 1.0 corresponds to full destruction of information in image",
+            ge=0.0,
+            le=1.0,
+            default=0.35,
+        ),
+        upscale_by: float = Input(
+            description="Upscale by factor",
+            ge=1,
+            le=4,
+            default=1.5,
+        ),
+        upscale_prompt: str = Input(
+            description="Input inpaint prompt",
+            default="closeup of TOK man, natural skin, skin moles, 37 y o caucasian",
+        ),
+        upscale_negative_prompt: str = Input(
+            description="Input inpaint negative prompt",
+            default="plastic, blurry, grainy, [deformed | disfigured], poorly drawn, [bad : wrong] anatomy, [extra | missing | floating | disconnected] limb, (mutated hands and fingers), blurry",
+        ),
+        upscale_num_inference_steps: int = Input(
+            description="Number of denoising steps for inpainting",
+            ge=1,
+            le=500,
+            default=25,
+        ),
+        upscale_guidance_scale: float = Input(
+            description="Scale for classifier-free guidance for inpainting",
+            ge=1,
+            le=50,
+            default=9,
+        ),
+        upscale_strength: float = Input(
+            description="Prompt strength when using inpaint. 1.0 corresponds to full destruction of information in image",
+            ge=0.0,
+            le=1.0,
+            default=0.35,
         ),
         width: int = Input(
             description="Width of output image",
@@ -321,61 +371,18 @@ class Predictor(BasePredictor):
             choices=SCHEDULERS.keys(),
             default="K_EULER",
         ),
-        num_inference_steps: int = Input(
-            description="Number of denoising steps", ge=1, le=500, default=25
-        ),
-        inpaint_num_inference_steps: int = Input(
-            description="Number of denoising steps for inpainting",
-            ge=1,
-            le=500,
-            default=25,
-        ),
-        guidance_scale: float = Input(
-            description="Scale for classifier-free guidance", ge=1, le=50, default=9
-        ),
-        inpaint_guidance_scale: float = Input(
-            description="Scale for classifier-free guidance for inpainting",
-            ge=1,
-            le=50,
-            default=9,
-        ),
         prompt_strength: float = Input(
             description="Prompt strength when using img2img / inpaint. 1.0 corresponds to full destruction of information in image",
             ge=0.0,
             le=1.0,
             default=0.8,
         ),
-        inpaint_strength: float = Input(
-            description="Prompt strength when using inpaint. 1.0 corresponds to full destruction of information in image",
-            ge=0.0,
-            le=1.0,
-            default=0.35,
-        ),
         mask_blur_amount: float = Input(
-            description="Amount to blur the mask by",
+            description="Amount to blur the inpaint mask by",
             default=8.0,
         ),
         seed: int = Input(
             description="Random seed. Leave blank to randomize the seed", default=1234
-        ),
-        refine: str = Input(
-            description="Which refine style to use",
-            choices=["no_refiner", "expert_ensemble_refiner", "base_image_refiner"],
-            default="no_refiner",
-        ),
-        high_noise_frac: float = Input(
-            description="For expert_ensemble_refiner, the fraction of noise to use",
-            default=0.8,
-            le=1.0,
-            ge=0.0,
-        ),
-        refine_steps: int = Input(
-            description="For base_image_refiner, the number of steps to refine, defaults to num_inference_steps",
-            default=None,
-        ),
-        apply_watermark: bool = Input(
-            description="Applies a watermark to enable determining if an image is generated in downstream applications. If you have other provisions for generating or deploying images safely, you can use this to disable watermarking.",
-            default=True,
         ),
         lora_scale: float = Input(
             description="LoRA additive scale. Only applicable on trained models.",
@@ -383,15 +390,15 @@ class Predictor(BasePredictor):
             le=1.0,
             default=0.4,
         ),
+        pose_image: Path = Input(
+            description="pose_image",
+            default=None,
+        ),
         controlnet_conditioning_scale: float = Input(
             description="controlnet_conditioning_scale",
             ge=0.0,
             le=1.0,
             default=0.6,
-        ),
-        pose_image: Path = Input(
-            description="pose_image",
-            default=None,
         ),
         weights: str = Input(
             description="Replicate LoRA weights to use. Leave blank to use the default weights.",
@@ -423,30 +430,11 @@ class Predictor(BasePredictor):
             sdxl_kwargs["width"] = width
             sdxl_kwargs["height"] = height
             pipe = self.controlnet_pipe
-        elif image and mask:
-            print("inpainting mode")
-            sdxl_kwargs["image"] = self.load_image(image)
-            sdxl_kwargs["mask_image"] = self.load_image(mask)
-            sdxl_kwargs["strength"] = prompt_strength
-            sdxl_kwargs["width"] = width
-            sdxl_kwargs["height"] = height
-            pipe = self.inpaint_pipe
-        elif image:
-            print("img2img mode")
-            sdxl_kwargs["image"] = self.load_image(image)
-            sdxl_kwargs["strength"] = prompt_strength
-            pipe = self.img2img_pipe
         else:
             print("txt2img mode")
             sdxl_kwargs["width"] = width
             sdxl_kwargs["height"] = height
             pipe = self.txt2img_pipe
-
-        # if not apply_watermark:
-        #     # toggles watermark for this prediction
-        #     watermark_cache = pipe.watermark
-        #     pipe.watermark = None
-        #     self.refiner.watermark = None
 
         pipe.scheduler = SCHEDULERS[scheduler].from_config(pipe.scheduler.config)
         generator = torch.Generator("cuda").manual_seed(seed)
@@ -462,39 +450,15 @@ class Predictor(BasePredictor):
         if self.is_lora:
             sdxl_kwargs["cross_attention_kwargs"] = {"scale": lora_scale}
 
-        output = pipe(**common_args, **sdxl_kwargs)
+        # Print kwargs
+        print("common_args: ", common_args)
+        print("sdxl_kwargs: ", sdxl_kwargs)
 
-        # Replacing refiner with custom inpainting refiner
-        # if refine in ["expert_ensemble_refiner", "base_image_refiner"]:
-        #     refiner_kwargs = {
-        #         "image": output.images,
-        #     }
-
-        #     if refine == "expert_ensemble_refiner":
-        #         refiner_kwargs["denoising_start"] = high_noise_frac
-        #     if refine == "base_image_refiner" and refine_steps:
-        #         common_args["num_inference_steps"] = refine_steps
-
-        #     output = self.refiner(**common_args, **refiner_kwargs)
-
-        #    (function) def clipseg_mask_generator(
-        #         images: List[Image],
-        #         target_prompts: List[str] | str,
-        #         device: device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
-        #         bias: float = 0.01,
-        #         temp: float = 1,
-        #         **kwargs: Any
-        #     ) -> List[Image]
+        torch.cuda.empty_cache()
+        with torch.no_grad():
+            output = pipe(**common_args, **sdxl_kwargs)
 
         output_paths = []
-
-        # output_masks = clipseg_mask_generator(
-        #     images=output.images,
-        #     target_prompts="face",
-        #     device="cuda",
-        #     bias=mask_bias,
-        #     temp=mask_temp,
-        # )
 
         google_face_masks = face_mask_google_mediapipe(
             images=output.images,
@@ -509,49 +473,15 @@ class Predictor(BasePredictor):
             mask.save(output_path)
             output_paths.append(Path(output_path))
 
-        pipe = self.inpaint_pipe
-        pipe.scheduler = SCHEDULERS[scheduler].from_config(pipe.scheduler.config)
+        self.inpaint_pipe.scheduler = SCHEDULERS[scheduler].from_config(
+            pipe.scheduler.config
+        )
 
-        # # Print combined args
-        # inpaint_kwargs = {
-        #     "prompt": inpaint_prompt,
-        #     "negative_prompt": inpaint_negative_prompt,
-        #     "guidance_scale": inpaint_guidance_scale,
-        #     "generator": torch.Generator("cuda").manual_seed(seed),
-        #     "num_inference_steps": inpaint_num_inference_steps,
-        #     "width": width,
-        #     "height": height,
-        #     "output_type": "pil",
-        #     "image": output.images[0],
-        #     "mask_image": google_face_masks[0],
-        #     "strength": inpaint_strength,
-        # }
-
-        #         inpaint_output = pipe(**inpaint_kwargs)
-
-        #         # Add inpaint output to output_paths
-        #         inpaint_output_path = f"/tmp/inpaint-out-{0}.png"
-        #         inpaint_output.images[0].save(inpaint_output_path)
-        #         output_paths.append(Path(inpaint_output_path))
-
-        # if not apply_watermark:
-        #     pipe.watermark = watermark_cache
-        #     self.refiner.watermark = watermark_cache
-
-        _, has_nsfw_content = self.run_safety_checker(output.images)
-
-        for i, nsfw in enumerate(has_nsfw_content):
-            if nsfw:
-                print(f"NSFW content detected in image {i}")
-                continue
+        # Add output images to output_paths
+        for i, image in enumerate(output.images):
             output_path = f"/tmp/out-{i}.png"
-            output.images[i].save(output_path)
+            image.save(output_path)
             output_paths.append(Path(output_path))
-
-        if len(output_paths) == 0:
-            raise Exception(
-                f"NSFW content detected. Try running it again, or try a different prompt."
-            )
 
         cropped_face, cropped_mask, left_top, orig_size = crop_faces_to_square(
             output.images[0], google_face_masks[0]
@@ -569,9 +499,12 @@ class Predictor(BasePredictor):
 
         print("inpainting mode")
 
-        pipe = self.inpaint_pipe
-        pipe.scheduler = SCHEDULERS[scheduler].from_config(pipe.scheduler.config)
+        self.inpaint_pipe.scheduler = SCHEDULERS[scheduler].from_config(
+            self.inpaint_pipe.scheduler.config
+        )
 
+        # # If inpaint_prompt has length, do inpainting
+        # if len(inpaint_prompt) > 0:
         # Print combined args
         inpaint_kwargs = {
             "prompt": inpaint_prompt,
@@ -587,22 +520,67 @@ class Predictor(BasePredictor):
             "strength": inpaint_strength,
         }
 
-        inpaint_output = pipe(**inpaint_kwargs)
+        output_image = output.images[0]
 
-        # Add inpaint output to output_paths
+        with torch.no_grad():
+            inpaint_output = self.inpaint_pipe(**inpaint_kwargs)
+
+        # Add inpaint outputs to output_paths
         inpaint_output_path = f"/tmp/inpaint-out-{0}.png"
         inpaint_output.images[0].save(inpaint_output_path)
         output_paths.append(Path(inpaint_output_path))
 
-        final_image = paste_inpaint_into_original_image(
-            output.images[i],
+        inpaint_image = inpaint_output.images[0]
+
+        pasted_image = paste_inpaint_into_original_image(
+            output_image,
             cropped_mask,
             left_top,
-            inpaint_output.images[i],
+            inpaint_image,
             orig_size,
         )
+
+        # Scale up final image by 1.5 using lanczos
+        pasted_image = pasted_image.resize(
+            (
+                int(pasted_image.width * upscale_by),
+                int(pasted_image.height * upscale_by),
+            ),
+            resample=Image.LANCZOS,
+        )
+
         output_path = f"/tmp/final-out-{i}.png"
-        final_image.save(output_path)
+        pasted_image.save(output_path)
         output_paths.append(Path(output_path))
+
+        # print pasted_image size
+        print("pasted_image size: ", pasted_image.size)
+
+        # Do img2img pass
+        self.img2img_pipe.scheduler = SCHEDULERS[scheduler].from_config(
+            self.img2img_pipe.scheduler.config
+        )
+
+        img2img_kwargs = {
+            "prompt": upscale_prompt,
+            "negative_prompt": upscale_negative_prompt,
+            "guidance_scale": upscale_guidance_scale,
+            "generator": torch.Generator("cuda").manual_seed(seed),
+            "num_inference_steps": upscale_num_inference_steps,
+            "output_type": "pil",
+            "image": pasted_image,
+            "strength": upscale_strength,
+        }
+
+        torch.cuda.empty_cache()
+        with torch.no_grad():
+            img2img_output = self.img2img_pipe(**img2img_kwargs)
+
+        img2img_result = img2img_output.images[0]
+
+        # Add img2img output to output_paths
+        img2img_output_path = f"/tmp/img2img-out-{0}.png"
+        img2img_result.save(img2img_output_path)
+        output_paths.append(Path(img2img_output_path))
 
         return output_paths
