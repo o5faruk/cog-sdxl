@@ -395,10 +395,6 @@ class Predictor(BasePredictor):
             le=1.0,
             default=0.8,
         ),
-        mask_blur_amount: float = Input(
-            description="Amount to blur the inpaint mask by",
-            default=8.0,
-        ),
         seed: int = Input(
             description="Random seed. Leave blank to randomize the seed", default=1234
         ),
@@ -417,6 +413,10 @@ class Predictor(BasePredictor):
             ge=0.0,
             le=1.0,
             default=0.6,
+        ),
+        mask_blur_amount: float = Input(
+            description="Amount to blur the inpaint mask by",
+            default=8.0,
         ),
         crop_mask_padding: float = Input(
             description="crop_mask_padding",
