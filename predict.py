@@ -418,6 +418,12 @@ class Predictor(BasePredictor):
             le=1.0,
             default=0.6,
         ),
+        crop_mask_padding: float = Input(
+            description="crop_mask_padding",
+            ge=0.0,
+            le=5.0,
+            default=0.5,
+        ),
         weights: str = Input(
             description="Replicate LoRA weights to use. Leave blank to use the default weights.",
             default="https://replicate.delivery/pbxt/cv7B5U7T4G4kFN8eXIg7F8FRfbC54hIWyeizfNuH9lcBevtOC/trained_model.tar",
@@ -480,8 +486,7 @@ class Predictor(BasePredictor):
         output_paths = []
 
         google_face_masks = face_mask_google_mediapipe(
-            images=output.images,
-            blur_amount=mask_blur_amount
+            images=output.images, blur_amount=mask_blur_amount
         )
 
         # Add google_face_masks to output_paths
@@ -501,7 +506,7 @@ class Predictor(BasePredictor):
             output_paths.append(Path(output_path))
 
         cropped_face, cropped_mask, left_top, orig_size = crop_faces_to_square(
-            output.images[0], google_face_masks[0]
+            output.images[0], google_face_masks[0], crop_mask_padding
         )
 
         # Add cropped face to output_paths
