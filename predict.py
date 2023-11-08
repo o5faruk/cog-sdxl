@@ -282,21 +282,25 @@ class Predictor(BasePredictor):
         self,
         prompt: str = Input(
             description="Input prompt",
-            default="a TOK man in preppy style, old money aesthetic, posh style, elite school stlye, luxurious style, gossip girl neo-prep style, ralph lauren style, country club style, ivy league style",
         ),
         negative_prompt: str = Input(
             description="Input Negative Prompt",
             default="plastic, blurry, grainy, [deformed | disfigured], poorly drawn, [bad : wrong] anatomy, [extra | missing | floating | disconnected] limb, (mutated hands and fingers), blurry",
         ),
         num_inference_steps: int = Input(
-            description="Number of denoising steps", ge=1, le=500, default=25
+            description="Number of denoising steps",
+            ge=1,
+            le=500,
+            default=25,
         ),
         guidance_scale: float = Input(
-            description="Scale for classifier-free guidance", ge=1, le=50, default=9
+            description="Scale for classifier-free guidance",
+            ge=1,
+            le=50,
+            default=3.0,
         ),
         inpaint_prompt: str = Input(
-            description="Input inpaint prompt",
-            default="closeup of TOK man, natural skin, skin moles, 37 y o caucasian",
+            description="Input inpaint prompt", default="A photo of TOK"
         ),
         inpaint_negative_prompt: str = Input(
             description="Input inpaint negative prompt",
@@ -318,101 +322,83 @@ class Predictor(BasePredictor):
             description="Scale for classifier-free guidance for inpainting",
             ge=1,
             le=50,
-            default=9,
+            default=3.0,
         ),
         second_inpaint_guidance_scale: float = Input(
             description="Scale for classifier-free guidance for inpainting",
             ge=1,
             le=50,
-            default=9,
+            default=3.0,
         ),
         inpaint_strength: float = Input(
             description="Prompt strength when using inpaint. 1.0 corresponds to full destruction of information in image",
             ge=0.0,
             le=1.0,
-            default=0.35,
         ),
         second_inpaint_strength: float = Input(
             description="Prompt strength when using inpaint. 1.0 corresponds to full destruction of information in image",
             ge=0.0,
             le=1.0,
-            default=0.35,
         ),
-        upscale_by: float = Input(
-            description="Upscale by factor",
-            ge=1,
-            le=4,
-            default=1.5,
-        ),
-        upscale_prompt: str = Input(
-            description="Input inpaint prompt",
-            default="closeup of TOK man, natural skin, skin moles, 37 y o caucasian",
-        ),
-        upscale_negative_prompt: str = Input(
-            description="Input inpaint negative prompt",
-            default="plastic, blurry, grainy, [deformed | disfigured], poorly drawn, [bad : wrong] anatomy, [extra | missing | floating | disconnected] limb, (mutated hands and fingers), blurry",
-        ),
-        upscale_num_inference_steps: int = Input(
-            description="Number of denoising steps for inpainting",
-            ge=1,
-            le=500,
-            default=25,
-        ),
-        upscale_guidance_scale: float = Input(
-            description="Scale for classifier-free guidance for inpainting",
-            ge=1,
-            le=50,
-            default=9,
-        ),
-        upscale_strength: float = Input(
-            description="Prompt strength when using inpaint. 1.0 corresponds to full destruction of information in image",
-            ge=0.0,
-            le=1.0,
-            default=0.35,
-        ),
-        width: int = Input(
-            description="Width of output image",
-            default=768,
-        ),
-        height: int = Input(
-            description="Height of output image",
-            default=1024,
-        ),
+        # upscale_by: float = Input(
+        #     description="Upscale by factor",
+        #     ge=1,
+        #     le=4,
+        # ),
+        # upscale_prompt: str = Input(
+        #     description="Input inpaint prompt",
+        # ),
+        # upscale_negative_prompt: str = Input(
+        #     description="Input inpaint negative prompt",
+        # ),
+        # upscale_num_inference_steps: int = Input(
+        #     description="Number of denoising steps for inpainting",
+        #     ge=1,
+        #     le=500,
+        # ),
+        # upscale_guidance_scale: float = Input(
+        #     description="Scale for classifier-free guidance for inpainting",
+        #     ge=1,
+        #     le=50,
+        # ),
+        # upscale_strength: float = Input(
+        #     description="Prompt strength when using inpaint. 1.0 corresponds to full destruction of information in image",
+        #     ge=0.0,
+        #     le=1.0,
+        # ),
+        width: int = Input(description="Width of output image", default=768),
+        height: int = Input(description="Height of output image", default=1024),
         num_outputs: int = Input(
             description="Number of images to output.",
             ge=1,
             le=4,
-            default=1,
         ),
         scheduler: str = Input(
             description="scheduler",
             choices=SCHEDULERS.keys(),
-            default="K_EULER",
         ),
-        prompt_strength: float = Input(
-            description="Prompt strength when using img2img / inpaint. 1.0 corresponds to full destruction of information in image",
-            ge=0.0,
-            le=1.0,
-            default=0.8,
-        ),
+        # prompt_strength: float = Input(
+        #     description="Prompt strength when using img2img / inpaint. 1.0 corresponds to full destruction of information in image",
+        #     ge=0.0,
+        #     le=1.0,
+        # ),
         seed: int = Input(
-            description="Random seed. Leave blank to randomize the seed", default=1234
+            description="Random seed. Leave blank to randomize the seed",
         ),
         lora_scale: float = Input(
             description="LoRA additive scale. Only applicable on trained models.",
             ge=0.0,
             le=1.0,
-            default=0.4,
+            default=0.7,
         ),
         pose_image: Path = Input(
             description="pose_image",
-            default=None,
         ),
         controlnet_conditioning_scale: float = Input(
             description="controlnet_conditioning_scale",
             ge=0.0,
-            le=1.0,
-            default=0.6,
+            le=2.0,
+            default=1.0,
         ),
         mask_blur_amount: float = Input(
             description="Amount to blur the inpaint mask by",
@@ -426,7 +412,6 @@ class Predictor(BasePredictor):
         ),
         weights: str = Input(
             description="Replicate LoRA weights to use. Leave blank to use the default weights.",
-            default="https://replicate.delivery/pbxt/cv7B5U7T4G4kFN8eXIg7F8FRfbC54hIWyeizfNuH9lcBevtOC/trained_model.tar",
         ),
     ) -> List[Path]:
         """Run a single prediction on the model"""
