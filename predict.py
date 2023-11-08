@@ -279,6 +279,7 @@ class Predictor(BasePredictor):
         self,
         prompt: str = Input(
             description="Input prompt",
+            default="Photo of TOK",
         ),
         negative_prompt: str = Input(
             description="Input Negative Prompt",
@@ -331,11 +332,13 @@ class Predictor(BasePredictor):
             description="Prompt strength when using inpaint. 1.0 corresponds to full destruction of information in image",
             ge=0.0,
             le=1.0,
+            default=0.35,
         ),
         second_inpaint_strength: float = Input(
             description="Prompt strength when using inpaint. 1.0 corresponds to full destruction of information in image",
             ge=0.0,
             le=1.0,
+            default=0.35,
         ),
         # upscale_by: float = Input(
         #     description="Upscale by factor",
@@ -369,10 +372,12 @@ class Predictor(BasePredictor):
             description="Number of images to output.",
             ge=1,
             le=4,
+            default=1,
         ),
         scheduler: str = Input(
             description="scheduler",
             choices=SCHEDULERS.keys(),
+            default="K_EULER",
         ),
         # prompt_strength: float = Input(
         #     description="Prompt strength when using img2img / inpaint. 1.0 corresponds to full destruction of information in image",
