@@ -481,9 +481,7 @@ class Predictor(BasePredictor):
 
         google_face_masks = face_mask_google_mediapipe(
             images=output.images,
-            blur_amount=mask_blur_amount,
-            # Keep this at 0 for it to be b&w
-            bias=0,
+            blur_amount=mask_blur_amount
         )
 
         # Add google_face_masks to output_paths
