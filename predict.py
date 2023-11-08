@@ -308,13 +308,31 @@ class Predictor(BasePredictor):
             le=500,
             default=25,
         ),
+        second_inpaint_num_inference_steps: int = Input(
+            description="Number of denoising steps for inpainting",
+            ge=1,
+            le=500,
+            default=25,
+        ),
         inpaint_guidance_scale: float = Input(
             description="Scale for classifier-free guidance for inpainting",
             ge=1,
             le=50,
             default=9,
         ),
+        second_inpaint_guidance_scale: float = Input(
+            description="Scale for classifier-free guidance for inpainting",
+            ge=1,
+            le=50,
+            default=9,
+        ),
         inpaint_strength: float = Input(
+            description="Prompt strength when using inpaint. 1.0 corresponds to full destruction of information in image",
+            ge=0.0,
+            le=1.0,
+            default=0.35,
+        ),
+        second_inpaint_strength: float = Input(
             description="Prompt strength when using inpaint. 1.0 corresponds to full destruction of information in image",
             ge=0.0,
             le=1.0,
@@ -412,6 +430,7 @@ class Predictor(BasePredictor):
 
         if weights:
             self.load_trained_weights(weights, self.txt2img_pipe)
+            self.load_trained_weights(weights, self.inpaint_pipe)
 
         # OOMs can leave vae in bad state
         if self.txt2img_pipe.vae.dtype == torch.float32:
@@ -522,8 +541,7 @@ class Predictor(BasePredictor):
 
         output_image = output.images[0]
 
-        with torch.no_grad():
-            inpaint_output = self.inpaint_pipe(**inpaint_kwargs)
+        inpaint_output = self.inpaint_pipe(**inpaint_kwargs)
 
         # Add inpaint outputs to output_paths
         inpaint_output_path = f"/tmp/inpaint-out-{0}.png"
@@ -531,6 +549,31 @@ class Predictor(BasePredictor):
         output_paths.append(Path(inpaint_output_path))
 
         inpaint_image = inpaint_output.images[0]
+
+        # Inpaint again
+
+        inpaint_kwargs = {
+            "prompt": inpaint_prompt,
+            "negative_prompt": inpaint_negative_prompt,
+            "guidance_scale": second_inpaint_guidance_scale,
+            "generator": torch.Generator("cuda").manual_seed(seed),
+            "num_inference_steps": second_inpaint_num_inference_steps,
+            "width": inpaint_image.width,
+            "height": inpaint_image.height,
+            "output_type": "pil",
+            "image": inpaint_image,
+            "mask_image": cropped_mask,
+            "strength": second_inpaint_strength,
+        }
+
+        second_inpaint_output = self.inpaint_pipe(**inpaint_kwargs)
+
+        # Add inpaint outputs to output_paths
+        second_inpaint_output_path = f"/tmp/second-inpaint-out-{0}.png"
+        second_inpaint_output.images[0].save(second_inpaint_output_path)
+        output_paths.append(Path(second_inpaint_output_path))
+
+        inpaint_image = second_inpaint_output.images[0]
 
         pasted_image = paste_inpaint_into_original_image(
             output_image,
@@ -540,47 +583,36 @@ class Predictor(BasePredictor):
             orig_size,
         )
 
-        # Scale up final image by 1.5 using lanczos
-        pasted_image = pasted_image.resize(
-            (
-                int(pasted_image.width * upscale_by),
-                int(pasted_image.height * upscale_by),
-            ),
-            resample=Image.LANCZOS,
-        )
-
         output_path = f"/tmp/final-out-{i}.png"
         pasted_image.save(output_path)
         output_paths.append(Path(output_path))
 
         # print pasted_image size
-        print("pasted_image size: ", pasted_image.size)
+        # print("pasted_image size: ", pasted_image.size)
 
         # Do img2img pass
-        self.img2img_pipe.scheduler = SCHEDULERS[scheduler].from_config(
-            self.img2img_pipe.scheduler.config
-        )
+        # self.img2img_pipe.scheduler = SCHEDULERS[scheduler].from_config(
+        #     self.img2img_pipe.scheduler.config
+        # )
 
-        img2img_kwargs = {
-            "prompt": upscale_prompt,
-            "negative_prompt": upscale_negative_prompt,
-            "guidance_scale": upscale_guidance_scale,
-            "generator": torch.Generator("cuda").manual_seed(seed),
-            "num_inference_steps": upscale_num_inference_steps,
-            "output_type": "pil",
-            "image": pasted_image,
-            "strength": upscale_strength,
-        }
+        # img2img_kwargs = {
+        #     "prompt": upscale_prompt,
+        #     "negative_prompt": upscale_negative_prompt,
+        #     "guidance_scale": upscale_guidance_scale,
+        #     "generator": torch.Generator("cuda").manual_seed(seed),
+        #     "num_inference_steps": upscale_num_inference_steps,
+        #     "output_type": "pil",
+        #     "image": pasted_image,
+        #     "strength": upscale_strength,
+        # }
 
-        torch.cuda.empty_cache()
-        with torch.no_grad():
-            img2img_output = self.img2img_pipe(**img2img_kwargs)
+        # img2img_output = self.img2img_pipe(**img2img_kwargs)
 
-        img2img_result = img2img_output.images[0]
+        # img2img_result = img2img_output.images[0]
 
         # Add img2img output to output_paths
-        img2img_output_path = f"/tmp/img2img-out-{0}.png"
-        img2img_result.save(img2img_output_path)
-        output_paths.append(Path(img2img_output_path))
+        # img2img_output_path = f"/tmp/img2img-out-{0}.png"
+        # img2img_result.save(img2img_output_path)
+        # output_paths.append(Path(img2img_output_path))
 
         return output_paths
